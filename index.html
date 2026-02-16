@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>REVO — Tactical Interface</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-color: #1a1a1a;
+      --panel-bg: rgba(30, 30, 30, 0.9);
+      --primary: #ff6600; /* Tactical Orange */
+      --secondary: #4d4d4d; /* Grit Grey */
+      --text-main: #e0e0e0;
+      --text-dim: #888888;
+      --glass-border: 1px solid rgba(255, 102, 0, 0.3);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg-color);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* BACKGROUND CANVAS */
+    #bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: radial-gradient(circle at center, #2b2b2b 0%, #0a0a0a 100%);
+    }
+
+    /* GRITTY SCANLINE OVERLAY */
+    body::after {
+      content: "";
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                  repeating-linear-gradient(0deg, rgba(255, 102, 0, 0.05) 0px, transparent 2px);
+      background-size: 100% 4px, 100% 3px;
+      z-index: 1;
+      opacity: 0.4;
+    }
+
+    /* PROFILE CARD */
+    .profile-card {
+      position: fixed;
+      top: 25px;
+      left: 25px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(10px);
+      padding: 12px 20px;
+      border: var(--glass-border);
+      border-left: 4px solid var(--primary);
+      clip-path: polygon(0 0, 100% 0, 100% 85%, 92% 100%, 0 100%);
+    }
+
+    .profile-card i { font-size: 24px; color: var(--primary); }
+    .profile-card .user-info { font-size: 12px; line-height: 1.2; font-weight: 700; letter-spacing: 1px; }
+    .profile-card .status { color: var(--primary); font-size: 10px; opacity: 0.8; }
+    .profile-card .username { color: #fff; font-size: 16px; font-family: 'Orbitron', sans-serif; }
+
+    /* STAGE & LOGO */
+    .stage {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+    }
+
+    .logo {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 80px;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 10px;
+      text-shadow: 3px 3px 0px var(--primary);
+      font-style: italic;
+    }
+
+    /* CONTROLS & BUTTONS */
+    .controls {
+      width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      z-index: 3;
+    }
+
+    .btn {
+      position: relative;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: all 0.25s ease;
+      clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+      text-align: center;
+    }
+
+    .btn:hover {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 0 20px rgba(255, 102, 0, 0.4);
+      transform: scale(1.02);
+    }
+
+    .btn.secondary {
+      border-color: var(--secondary);
+      color: var(--text-main);
+    }
+
+    .btn.secondary:hover {
+      background: var(--secondary);
+      color: #fff;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-dim);
+      z-index: 3;
+      letter-spacing: 3px;
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    /* MODALS / OVERLAYS */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+      background: #1a1a1a;
+      padding: 40px;
+      border: 1px solid var(--primary);
+      width: 500px;
+      position: relative;
+    }
+
+    .online-panel { width: 700px; display: grid; grid-template-columns: 1fr 1px 1fr; gap: 30px; }
+    .divider { background: var(--secondary); width: 1px; height: 100%; }
+
+    .column { display: flex; flex-direction: column; gap: 15px; }
+
+    .title { 
+      font-family: 'Orbitron', sans-serif;
+      font-size: 18px; color: #fff; margin-bottom: 5px; 
+      border-bottom: 2px solid var(--primary); 
+      padding-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 11px; color: var(--primary); letter-spacing: 1px; }
+
+    .room-id {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 18px; padding: 15px; 
+      background: rgba(255, 102, 0, 0.05);
+      color: var(--primary); 
+      border: 1px dashed var(--primary);
+      text-align: center;
+    }
+
+    input {
+      padding: 15px; 
+      border: 1px solid var(--secondary); 
+      background: #000;
+      color: #fff; 
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      width: 100%;
+    }
+
+    .modes { display: flex; gap: 10px; }
+    .modes button { flex: 1; padding: 12px; font-size: 11px; clip-path: none; }
+    
+    .modeBtn.active {
+      background: var(--primary);
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="profile-card">
+  <i class="fa-solid fa-shield-halved"></i>
+  <div class="user-info">
+    <span class="status">● SYSTEM ACTIVE</span><br>
+    <span class="username" id="displayUsername">GUEST_UNIT</span>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="logo">REVO</div>
+
+  <div class="controls">
+    <button class="btn" id="vsAiBtn"><i class="fa-solid fa-microchip"></i> Play vs AI</button>
+    <button class="btn secondary" id="onlineBtn"><i class="fa-solid fa-network-wired"></i> Play Online</button>
+    <button class="btn secondary" id="optionsBtn"><i class="fa-solid fa-gears"></i> Options</button>
+  </div>
+</div>
+
+<footer>REVO • TACTICAL WEB BATTLEGROUND • RUBEN</footer>
+
+<div class="overlay" id="onlineOverlay">
+  <div class="panel online-panel">
+    <div class="column">
+      <div class="title">CREATE ROOM</div>
+      <div class="modes">
+        <button class="btn secondary modeBtn active" data-mode="1v1">1v1</button>
+        <button class="btn secondary modeBtn" data-mode="2v2">2v2</button>
+        <button class="btn secondary modeBtn" data-mode="4v4">4v4</button>
+      </div>
+      <div class="room-id" id="roomDisplay">ROOM-XXXX</div>
+      <button class="btn secondary" id="copyBtn">Copy ID</button>
+      <button class="btn" id="startHost">Start Host</button>
+    </div>
+    
+    <div class="divider"></div>
+
+    <div class="column">
+      <div class="title">JOIN ROOM</div>
+      <div class="field">
+        <input id="joinInput" placeholder="ENTER ROOM ID">
+      </div>
+      <button class="btn" id="joinBtn">Join</button>
+      <button class="btn secondary" id="closeOnline">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="optionsOverlay">
+  <div class="panel">
+    <div class="title">SETTINGS</div>
+    <div class="field">
+      <label>CHANGE USERNAME</label>
+      <input type="text" id="usernameInput" maxlength="15" placeholder="Enter name...">
+    </div>
+    <button class="btn" id="saveOptions">Save Changes</button>
+    <button class="btn secondary" id="closeOptions">Cancel</button>
+  </div>
+</div>
+
+<script>
+  /* --- TACTICAL PARTICLE BACKGROUND --- */
+  const canvas = document.getElementById('bg');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  let mouse = { x: 0, y: 0 };
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    initParticles();
+  }
+
+  function initParticles() {
+    particles = [];
+    const count = Math.floor(window.innerWidth / 15); 
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 1,
+        vy: (Math.random() - 0.5) * 1,
+        size: Math.random() * 2 + 1,
+        color: Math.random() > 0.8 ? '#ff6600' : '#4d4d4d'
+      });
+    }
+  }
+
+  function draw() {
+    ctx.fillStyle = 'rgba(20, 20, 20, 0.3)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    particles.forEach((p, i) => {
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+      if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+
+      for (let j = i + 1; j < particles.length; j++) {
+        const p2 = particles[j];
+        const dx = p.x - p2.x;
+        const dy = p.y - p2.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        if (dist < 100) {
+          ctx.strokeStyle = `rgba(255, 102, 0, ${0.15 * (1 - dist/100)})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      }
+    });
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  resize(); 
+  draw();
+
+  /* --- LOGIC --- */
+  const displayUsername = document.getElementById('displayUsername');
+  const usernameInput = document.getElementById('usernameInput');
+
+  function updateProfileDisplay() {
+    const savedName = localStorage.getItem('revo_name') || 'GUEST_UNIT';
+    displayUsername.textContent = savedName.toUpperCase();
+    usernameInput.value = savedName;
+  }
+
+  document.getElementById('saveOptions').onclick = () => {
+    const newName = usernameInput.value.trim();
+    if (newName) {
+      localStorage.setItem('revo_name', newName);
+      updateProfileDisplay();
+      document.getElementById('optionsOverlay').style.display = "none";
+    }
+  };
+
+  const onlineOverlay = document.getElementById("onlineOverlay");
+  const optionsOverlay = document.getElementById("optionsOverlay");
+
+  document.getElementById("onlineBtn").onclick = () => onlineOverlay.style.display = "flex";
+  document.getElementById("closeOnline").onclick = () => onlineOverlay.style.display = "none";
+  document.getElementById("optionsBtn").onclick = () => optionsOverlay.style.display = "flex";
+  document.getElementById("closeOptions").onclick = () => optionsOverlay.style.display = "none";
+
+  document.getElementById("vsAiBtn").onclick = () => {
+    location.href = `game.html?mode=vsai&user=${displayUsername.textContent}`;
+  };
+
+  let selectedMode = "1v1";
+  const modeBtns = document.querySelectorAll(".modeBtn");
+  modeBtns.forEach(btn => {
+    btn.onclick = () => {
+      selectedMode = btn.dataset.mode;
+      modeBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
+
+  function generateRoom() {
+    return "ROOM-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+  const roomId = generateRoom();
+  document.getElementById("roomDisplay").textContent = roomId;
+
+  document.getElementById("copyBtn").onclick = () => {
+    navigator.clipboard.writeText(roomId);
+    alert("Copied: " + roomId);
+  };
+
+  document.getElementById("startHost").onclick = () => {
+    location.href = `game.html?mode=online&role=host&team=${selectedMode}&room=${roomId}&user=${displayUsername.textContent}`;
+  };
+
+  document.getElementById("joinBtn").onclick = () => {
+    const room = document.getElementById("joinInput").value.trim();
+    if (!room) return alert("Enter room ID");
+    location.href = `game.html?mode=online&role=join&room=${room}&user=${displayUsername.textContent}`;
+  };
+
+  updateProfileDisplay();
+</script>
+</body>
+</html>
