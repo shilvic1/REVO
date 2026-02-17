@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REVO - Advanced Combat</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@1,900&display=swap');
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Montserrat', sans-serif; user-select: none; }
+        canvas { display: block; }
+
+        /* --- REDESIGNED SELECTION SCREEN (Roblox Style) --- */
+        #selection-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+            z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            color: white; padding-top: 40px;
+        }
+
+        h1 { font-style: italic; font-size: 3rem; margin: 0; text-shadow: 0 0 10px #ff007f; text-transform: uppercase; }
+        .sub-text { margin-bottom: 30px; color: #888; letter-spacing: 2px; font-size: 0.8rem; }
+
+        .loadout-container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid #333;
+            max-width: 90%;
+            overflow-x: auto;
+        }
+
+        .category-column {
+            display: flex; flex-direction: column; align-items: center;
+            min-width: 200px;
+        }
+
+        .category-title {
+            background: #ff007f; color: white; padding: 5px 15px;
+            transform: skewX(-15deg); font-size: 0.9rem; margin-bottom: 15px;
+            box-shadow: 0 0 10px rgba(255, 0, 127, 0.5);
+        }
+
+        /* Grid layout for items mimicking inventory slots */
+        .item-list { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 8px; 
+            max-height: 400px; 
+            overflow-y: auto; 
+            padding: 5px;
+            width: 100%;
+        }
+
+        /* Square Item Cards */
+        .item-btn {
+            background: linear-gradient(135deg, #222, #111);
+            border: 2px solid #333;
+            color: #aaa;
+            aspect-ratio: 1/1; /* Perfect Square */
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s;
+            border-radius: 8px;
+            font-size: 0.65rem;
+            text-align: center;
+            padding: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .item-btn::before {
+            content: ''; width: 40px; height: 40px;
+            background: rgba(255,255,255,0.1); border-radius: 50%;
+            margin-bottom: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .item-btn:hover { background: #333; border-color: #666; transform: translateY(-2px); }
+        .item-btn.selected { 
+            border-color: #ff007f; 
+            background: linear-gradient(135deg, rgba(255, 0, 127, 0.2), #111);
+            color: white; 
+            box-shadow: 0 0 15px rgba(255,0,127,0.3);
+        }
+
+        #deploy-btn {
+            margin-top: 30px;
+            padding: 15px 80px; font-size: 1.5rem; background: #ff007f; color: white;
+            border: none; cursor: pointer; transform: skewX(-15deg); font-weight: 900;
+            box-shadow: 0 0 30px rgba(255,0,127,0.4);
+            transition: 0.3s;
+        }
+        #deploy-btn:hover { transform: skewX(-15deg) scale(1.05); background: #ff3399; }
+        #deploy-btn:disabled { background: #333; cursor: not-allowed; box-shadow: none; opacity: 0.5; }
+
+        /* --- GAME UI --- */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; display: none; }
+        
+        /* Flashbang Overlay */
+        #flash-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; opacity: 0; transition: opacity 0.1s; pointer-events: none; z-index: 999;
+        }
+
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 24px; height: 24px; }
+        .ch-bar { position: absolute; background: #ff0000; border: 1px solid #000; border-radius: 1px;}
+        .ch-v { width: 4px; height: 10px; } .ch-h { width: 10px; height: 4px; }
+        .ch-top { top: 0; left: 10px; } .ch-bottom { bottom: 0; left: 10px; } .ch-left { left: 0; top: 10px; } .ch-right { right: 0; top: 10px; }
+        
+        .ammo-display {
+            position: absolute; bottom: 80px; left: 45px; color: white; font-size: 24px;
+            text-shadow: 2px 2px black; font-style: italic;
+        }
+
+        .health-bar { position: absolute; bottom: 40px; left: 40px; width: 350px; height: 22px; background: rgba(0,0,0,0.6); border: 3px solid #000; transform: skewX(-15deg); overflow: hidden; border-radius: 2px; }
+        .health-fill { width: 100%; height: 100%; background: #4efc03; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); transition: width 0.2s; }
+
+        .weapon-slots { position: absolute; bottom: 40px; right: 40px; display: flex; gap: 12px; }
+        .slot { width: 70px; height: 70px; background: rgba(10,10,10,0.9); border: 2px solid #222; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; color: white; font-size: 0.7rem; text-align: center; padding: 5px; box-sizing: border-box;}
+        .slot.active { border-color: #ff007f; background: rgba(255,0,127,0.15); transform: scale(1.1); box-shadow: 0 0 15px rgba(255,0,127,0.3); }
+        .slot::after { content: attr(data-key); position: absolute; top: 2px; left: 6px; color: #ff007f; font-size: 11px; font-weight: 900; }
+    </style>
+</head>
+<body>
+
+    <div id="selection-screen">
+        <h1>REVO</h1>
+        <div class="sub-text">CHOOSE YOUR LOADOUT</div>
+        
+        <div class="loadout-container" id="menu-grid"></div>
+        <button id="deploy-btn" disabled>DEPLOY TO BATTLE</button>
+    </div>
+
+    <div id="ui-layer">
+        <div id="flash-overlay"></div>
+        <div id="crosshair">
+            <div class="ch-bar ch-v ch-top"></div><div class="ch-bar ch-v ch-bottom"></div>
+            <div class="ch-bar ch-h ch-left"></div><div class="ch-bar ch-h ch-right"></div>
+        </div>
+        <div class="ammo-display" id="ammo-text">30 / 30</div>
+        <div class="health-bar"><div class="health-fill" id="hp-bar"></div></div>
+        <div class="weapon-slots" id="hud-slots"></div>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- CONFIG & STATE ---
+        const WEAPON_CONFIG = {
+            "Volt-AR": { mag: 30, reload: 1500, rpm: 650, type: "auto", color: 0x333333, damage: 22 },
+            "Marksman-7": { mag: 12, reload: 2000, rpm: 300, type: "semi", color: 0x4a3728, damage: 55 },
+            "Cutter SMG": { mag: 40, reload: 1000, rpm: 950, type: "auto", color: 0x111111, damage: 14 },
+            "Burst-Pulse": { mag: 24, reload: 1800, rpm: 400, type: "burst", color: 0x2c3e50, damage: 20 },
+            "Slug-Shotty": { mag: 5, reload: 3000, rpm: 60, type: "semi", color: 0x1a1a1a, kick: 0.5, damage: 110 },
+            "Carbine-X": { mag: 25, reload: 2000, rpm: 550, type: "auto", color: 0x273c75, damage: 26 },
+            "LMG-Heavy": { mag: 100, reload: 4500, rpm: 500, type: "auto", color: 0x2f3640, damage: 28 },
+            "Standard 9mm": { mag: 15, reload: 1200, rpm: 450, type: "semi", color: 0x353b48, damage: 18 },
+            "Shorty": { mag: 2, reload: 2500, rpm: 100, type: "semi", color: 0x192a56, damage: 85 },
+            "Magnum .44": { mag: 6, reload: 2500, rpm: 120, type: "semi", color: 0x7f8c8d, damage: 65 },
+            "Auto-Pistol": { mag: 20, reload: 1200, rpm: 800, type: "auto", color: 0x2f3640, damage: 12 },
+            "Silenced USP": { mag: 12, reload: 1500, rpm: 450, type: "semi", color: 0x1e272e, damage: 20 },
+            "Laser-Pistol": { mag: Infinity, reload: 0, rpm: 600, type: "laser", color: 0x00d2d3, damage: 10 },
+            "Hand Cannon": { mag: 1, reload: 3500, rpm: 30, type: "semi", color: 0x485460, damage: 250 },
+            
+            "Molotov": { type: "throwable", effect: "fire", cooldown: 2000, color: 0xff4400, aoeDmg: 5 },
+            "Flare Gun": { type: "projectile", effect: "flare", cooldown: 1000, color: 0xff0000, aoeDmg: 2 },
+            "Flashbang": { type: "throwable", effect: "flash", cooldown: 2000, color: 0xdddddd },
+            "Smoke Screen": { type: "throwable", effect: "smoke", cooldown: 3000, color: 0x555555 },
+            "Shock Trap": { type: "throwable", effect: "shock", cooldown: 2000, color: 0x00ffff, aoeDmg: 10 },
+            "Stim-Shot": { type: "self", effect: "heal", cooldown: 5000, color: 0x00ff00 },
+            "Decoy Grenade": { type: "throwable", effect: "sound", cooldown: 2000, color: 0xffaa00 },
+
+            "Tactical Knife": { rpm: 150, type: "melee", color: 0x222222, damage: 65 },
+            "Karambit": { rpm: 100, type: "melee", color: 0x111111, damage: 85 },
+            "Butterfly Knife": { rpm: 150, type: "melee", color: 0x333333, damage: 70 },
+            "Stun Baton": { rpm: 600, type: "melee", color: 0x0984e3, damage: 35 },
+            "Brass Knuckles": { rpm: 120, type: "melee", color: 0xd63031, damage: 50 },
+            "Tomahawk": { rpm: 1000, type: "melee", color: 0x2d3436, damage: 95 },
+            "Crowbar": { rpm: 700, type: "melee", color: 0xfa8231, damage: 60 }
+        };
+
+        const LOADOUT_DATA = [
+            { name: "PRIMARY", items: ["Volt-AR", "Marksman-7", "Cutter SMG", "Burst-Pulse", "Slug-Shotty", "Carbine-X", "LMG-Heavy"] },
+            { name: "SECONDARY", items: ["Standard 9mm", "Shorty", "Magnum .44", "Auto-Pistol", "Silenced USP", "Laser-Pistol", "Hand Cannon"] },
+            { name: "TACTICAL", items: ["Molotov", "Flare Gun", "Flashbang", "Smoke Screen", "Shock Trap", "Stim-Shot", "Decoy Grenade"] },
+            { name: "MELEE", items: ["Tactical Knife", "Karambit", "Butterfly Knife", "Stun Baton", "Brass Knuckles", "Tomahawk", "Crowbar"] }
+        ];
+
+        let selectedItems = [null, null, null, null];
+        let ammoState = [0, 0, 1, 0]; 
+        let isReloading = false;
+        let isScoping = false; // NEW: ADS state
+        let laserHeat = 0;
+        let health = 100;
+
+        let scene, camera, renderer, controls, weaponGroup;
+        let isGrounded = true, velocity = new THREE.Vector3(), direction = new THREE.Vector3();
+        let moveFwd = false, moveBwd = false, moveL = false, moveR = false, isSliding = false;
+        let activeWeaponIndex = 0;
+        let canShoot = true;
+        
+        let bullets = [];
+        let particles = [];
+        let throwables = [];
+        let activeAOEs = [];
+        let motionLines = [];
+        let damageTexts = [];
+        let dummy;
+
+        // --- PARTICLE TEXTURE GENERATOR ---
+        function createParticleTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            if(type === 'soft') {
+                grad.addColorStop(0, 'rgba(255,255,255,1)');
+                grad.addColorStop(1, 'rgba(255,255,255,0)');
+            } else if (type === 'spark') {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(10,0,12,32);
+                ctx.fillRect(0,10,32,12);
+                return new THREE.CanvasTexture(canvas);
+            }
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        const smokeTex = createParticleTexture('soft');
+        const sparkTex = createParticleTexture('spark');
+
+        // --- UI LOGIC ---
+        const menuGrid = document.getElementById('menu-grid');
+        LOADOUT_DATA.forEach((cat, catIdx) => {
+            const col = document.createElement('div');
+            col.className = 'category-column';
+            col.innerHTML = `<div class="category-title">${cat.name}</div>`;
+            const list = document.createElement('div');
+            list.className = 'item-list';
+            
+            cat.items.forEach((item) => {
+                const btn = document.createElement('div');
+                btn.className = 'item-btn';
+                btn.innerHTML = item; 
+                btn.onclick = () => {
+                    col.querySelectorAll('.item-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedItems[catIdx] = item;
+                    checkDeploy();
+                };
+                list.appendChild(btn);
+            });
+            col.appendChild(list);
+            menuGrid.appendChild(col);
+        });
+
+        function checkDeploy() {
+            document.getElementById('deploy-btn').disabled = selectedItems.includes(null);
+        }
+
+        document.getElementById('deploy-btn').onclick = () => {
+            document.getElementById('selection-screen').style.display = 'none';
+            document.getElementById('ui-layer').style.display = 'block';
+            
+            selectedItems.forEach((name, i) => {
+                const config = WEAPON_CONFIG[name];
+                ammoState[i] = config ? (i === 2 ? 1 : config.mag) : 1;
+            });
+
+            initGame();
+        };
+
+        // --- CORE GAME ENGINE ---
+        function initGame() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505); 
+            scene.fog = new THREE.FogExp2(0x050505, 0.002);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const grid = new THREE.GridHelper(2000, 100, 0xff007f, 0x222222);
+            scene.add(grid);
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+            sun.position.set(100, 100, 50);
+            sun.castShadow = true;
+            scene.add(sun);
+
+            controls = new PointerLockControls(camera, document.body);
+            controls.lock();
+
+            dummy = new THREE.Group();
+            const bodyGeo = new THREE.CapsuleGeometry(1.2, 3, 4, 8);
+            const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({color: 0xff007f}));
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.7), new THREE.MeshStandardMaterial({color: 0x555555}));
+            head.position.y = 2.5;
+            dummy.add(body, head);
+            dummy.position.set(0, 2.5, -20);
+            scene.add(dummy);
+
+            const lineGroup = new THREE.Group();
+            for(let i=0; i<20; i++) {
+                const mat = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0});
+                const line = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 2), mat);
+                line.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*10, -5);
+                lineGroup.add(line);
+                motionLines.push(line);
+            }
+            camera.add(lineGroup);
+
+            const hudSlots = document.getElementById('hud-slots');
+            selectedItems.forEach((item, i) => {
+                const slot = document.createElement('div');
+                slot.className = `slot ${i === 0 ? 'active' : ''}`;
+                slot.id = `hud-slot-${i}`;
+                slot.setAttribute('data-key', i + 1);
+                slot.innerText = item;
+                hudSlots.appendChild(slot);
+            });
+
+            weaponGroup = new THREE.Group();
+            camera.add(weaponGroup);
+            scene.add(controls.getObject());
+
+            setupInputs();
+            updateWeaponModel();
+            updateAmmoUI();
+            animate();
+        }
+
+        class DamageNumber {
+            constructor(pos, value) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.font = 'bold 60px Montserrat';
+                ctx.fillStyle = value > 50 ? '#ff0000' : '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.floor(value), 64, 64);
+                
+                const tex = new THREE.CanvasTexture(canvas);
+                const mat = new THREE.SpriteMaterial({ map: tex });
+                this.sprite = new THREE.Sprite(mat);
+                this.sprite.position.copy(pos).add(new THREE.Vector3((Math.random()-0.5), 2, (Math.random()-0.5)));
+                this.sprite.scale.set(2, 2, 2);
+                this.life = 1.0;
+                scene.add(this.sprite);
+            }
+            update() {
+                this.life -= 0.02;
+                this.sprite.position.y += 0.05;
+                this.sprite.material.opacity = this.life;
+                if(this.life <= 0) {
+                    scene.remove(this.sprite);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        function setupInputs() {
+            window.oncontextmenu = (e) => e.preventDefault(); // Prevents menu on right-click
+
+            window.onkeydown = (e) => {
+                if(e.code === 'KeyW') moveFwd = true; if(e.code === 'KeyS') moveBwd = true;
+                if(e.code === 'KeyA') moveL = true; if(e.code === 'KeyD') moveR = true;
+                if(e.code === 'ControlLeft') isSliding = true;
+                if(e.code === 'Space' && isGrounded) velocity.y += 30;
+                if(e.code === 'KeyR') reload();
+                if(['1','2','3','4'].includes(e.key)) {
+                    activeWeaponIndex = parseInt(e.key) - 1;
+                    isScoping = false; // Reset ADS on switch
+                    updateWeaponModel();
+                    updateAmmoUI();
+                }
+            };
+            window.onkeyup = (e) => {
+                if(e.code === 'KeyW') moveFwd = false; if(e.code === 'KeyS') moveBwd = false;
+                if(e.code === 'KeyA') moveL = false; if(e.code === 'KeyD') moveR = false;
+                if(e.code === 'ControlLeft') isSliding = false;
+            };
+            window.onmousedown = (e) => { 
+                if(!controls.isLocked) return;
+                if(e.button === 0) shoot(); 
+                if(e.button === 2 && (activeWeaponIndex === 0 || activeWeaponIndex === 1)) isScoping = true; // Scope Primary/Secondary
+            };
+            window.onmouseup = (e) => {
+                if(e.button === 2) isScoping = false;
+            };
+        }
+
+        function updateAmmoUI() {
+            const config = WEAPON_CONFIG[selectedItems[activeWeaponIndex]];
+            const ammoText = document.getElementById('ammo-text');
+            if (!config) return;
+            
+            if (activeWeaponIndex === 2) {
+                ammoText.innerText = canShoot ? "READY" : "COOLDOWN";
+                ammoText.style.color = canShoot ? "#00ff00" : "#ff0000";
+            } else if (config.type === "laser") {
+                ammoText.innerText = `HEAT: ${Math.floor(laserHeat)}%`;
+                ammoText.style.color = laserHeat > 80 ? "#ff0000" : "#00d2d3";
+            } else if (config.type === "melee") {
+                ammoText.innerText = "READY";
+            } else {
+                ammoText.innerText = isReloading ? "RELOADING..." : `${ammoState[activeWeaponIndex]} / ${config.mag}`;
+                ammoText.style.color = "white";
+            }
+        }
+
+        function reload() {
+            const name = selectedItems[activeWeaponIndex];
+            const config = WEAPON_CONFIG[name];
+            if (!config || activeWeaponIndex === 2 || config.type === "melee" || isReloading || ammoState[activeWeaponIndex] === config.mag) return;
+
+            isReloading = true;
+            updateAmmoUI();
+            weaponGroup.rotation.x = 0.5;
+
+            setTimeout(() => {
+                ammoState[activeWeaponIndex] = config.mag;
+                isReloading = false;
+                weaponGroup.rotation.x = 0;
+                updateAmmoUI();
+            }, config.reload);
+        }
+
+        function updateWeaponModel() {
+            while(weaponGroup.children.length > 0) weaponGroup.remove(weaponGroup.children[0]);
+            
+            document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
+            const hudSlot = document.getElementById(`hud-slot-${activeWeaponIndex}`);
+            if(hudSlot) hudSlot.classList.add('active');
+
+            const name = selectedItems[activeWeaponIndex];
+            const config = WEAPON_CONFIG[name] || { color: 0xffffff };
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 1.4), new THREE.MeshStandardMaterial({color: config.color}));
+            const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.8), new THREE.MeshStandardMaterial({color: 0x111111}));
+            barrel.position.z = -0.8;
+            
+            const mag = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.25), new THREE.MeshStandardMaterial({color: 0x000000}));
+            mag.position.set(0, -0.3, -0.2);
+
+            const weaponInner = new THREE.Group();
+            weaponInner.add(body, barrel, mag);
+            
+            if(config.type === "melee") {
+                mag.visible = false;
+                barrel.scale.set(0.5, 3, 0.1); 
+                barrel.position.set(0, 0, -0.8);
+            }
+            if(activeWeaponIndex === 2) {
+                barrel.visible = false;
+                body.scale.set(1, 1, 0.5); 
+            }
+
+            weaponInner.position.set(0.8, -0.7, -1.2);
+            weaponGroup.add(weaponInner);
+        }
+
+        class Particle {
+            constructor(pos, type, color) {
+                this.pos = pos.clone();
+                this.type = type;
+                this.life = 1.0;
+                
+                if (type === 'fire') {
+                    this.vel = new THREE.Vector3((Math.random()-0.5)*4, Math.random()*8, (Math.random()-0.5)*4);
+                    this.decay = 0.01 + Math.random()*0.02;
+                    this.size = 2 + Math.random();
+                } else if (type === 'smoke') {
+                    this.vel = new THREE.Vector3((Math.random()-0.5)*5, Math.random()*2, (Math.random()-0.5)*5);
+                    this.decay = 0.005;
+                    this.size = 5 + Math.random()*5;
+                } else if (type === 'spark') {
+                    this.vel = new THREE.Vector3((Math.random()-0.5)*20, (Math.random()-0.5)*20, (Math.random()-0.5)*20);
+                    this.decay = 0.05;
+                    this.size = 0.5;
+                } else if (type === 'flash') {
+                    this.vel = new THREE.Vector3(0,0,0);
+                    this.decay = 0.1;
+                    this.size = 20;
+                } else if (type === 'flare_core') {
+                    this.vel = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*15, (Math.random()-0.5)*2);
+                    this.decay = 0.02;
+                    this.size = 4;
+                }
+
+                const mat = new THREE.SpriteMaterial({ 
+                    map: type === 'spark' ? sparkTex : smokeTex, 
+                    color: color, 
+                    transparent: true, 
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending 
+                });
+                this.mesh = new THREE.Sprite(mat);
+                this.mesh.position.copy(this.pos);
+                this.mesh.scale.set(this.size, this.size, this.size);
+                scene.add(this.mesh);
+            }
+
+            update() {
+                this.life -= this.decay;
+                this.pos.addVectors(this.pos, this.vel.clone().multiplyScalar(0.016));
+                this.mesh.position.copy(this.pos);
+                
+                if (this.type === 'fire' || this.type === 'flare_core') {
+                    this.mesh.scale.set(this.size * this.life, this.size * this.life, 1);
+                    this.mesh.material.opacity = this.life;
+                } else if (this.type === 'smoke') {
+                    this.mesh.scale.multiplyScalar(1.01);
+                    this.mesh.material.opacity = this.life * 0.5;
+                } else {
+                    this.mesh.material.opacity = this.life;
+                }
+            }
+        }
+
+        function spawnParticles(pos, count, type, color) {
+            for(let i=0; i<count; i++) {
+                particles.push(new Particle(pos, type, color));
+            }
+        }
+
+        async function shoot() {
+            const name = selectedItems[activeWeaponIndex];
+            const config = WEAPON_CONFIG[name];
+            if(!canShoot || isReloading || !config) return;
+
+            if (activeWeaponIndex === 2) {
+                useTactical(name, config);
+                return;
+            }
+
+            // NEW: Melee Logic (Slot 4)
+            if (config.type === "melee") {
+                canShoot = false;
+                // Swing animation
+                weaponGroup.children[0].rotation.x = -1.2;
+                
+                // Hit detection
+                const playerPos = controls.getObject().position;
+                const dist = playerPos.distanceTo(dummy.position);
+                if (dist < 8) {
+                    damageTexts.push(new DamageNumber(dummy.position.clone().add(new THREE.Vector3(0,2,0)), config.damage));
+                    spawnParticles(dummy.position, 10, 'spark', 0xff007f);
+                }
+
+                setTimeout(() => {
+                    weaponGroup.children[0].rotation.x = 0;
+                    canShoot = true;
+                }, 1000 * (60 / config.rpm));
+                return;
+            }
+
+            if (config.type !== "laser") {
+                if (ammoState[activeWeaponIndex] <= 0) { reload(); return; }
+                ammoState[activeWeaponIndex]--;
+            }
+
+            if (config.type === "laser") {
+                if (laserHeat >= 100) return;
+                laserHeat += 15;
+            }
+
+            canShoot = false;
+            
+            const shots = config.type === "burst" ? 3 : 1;
+            for(let i=0; i<shots; i++) {
+                spawnBullet(config.damage);
+                weaponGroup.position.z += 0.1;
+                if(config.kick) velocity.z += config.kick * 10;
+                if(shots > 1) await new Promise(r => setTimeout(r, 80));
+            }
+
+            updateAmmoUI();
+            setTimeout(() => { canShoot = true; weaponGroup.position.z = 0; updateAmmoUI(); }, 60000 / config.rpm);
+        }
+
+        function useTactical(name, config) {
+            canShoot = false;
+            updateAmmoUI();
+
+            if(config.type === "self") {
+                if(name === "Stim-Shot") {
+                    health = 100;
+                    document.getElementById('hp-bar').style.width = '100%';
+                    spawnParticles(controls.getObject().position, 50, 'spark', 0x00ff00);
+                }
+            } 
+            else {
+                spawnThrowable(name, config);
+            }
+
+            setTimeout(() => {
+                canShoot = true;
+                updateAmmoUI();
+            }, config.cooldown);
+        }
+
+        function spawnThrowable(name, config) {
+            const geo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const mat = new THREE.MeshStandardMaterial({color: config.color});
+            const mesh = new THREE.Mesh(geo, mat);
+            
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            mesh.position.copy(camera.position).add(dir);
+            
+            mesh.userData = { 
+                vel: dir.multiplyScalar(25).add(new THREE.Vector3(0, 5, 0)), 
+                type: "grenade", 
+                config: config,
+                name: name,
+                grounded: false
+            };
+            
+            scene.add(mesh);
+            throwables.push(mesh);
+        }
+
+        function detonate(obj) {
+            const name = obj.userData.name;
+            const config = obj.userData.config;
+            const pos = obj.position.clone();
+            
+            if (name === "Molotov") {
+                const fireLight = new THREE.PointLight(0xff4400, 15, 20);
+                fireLight.position.copy(pos);
+                scene.add(fireLight);
+                activeAOEs.push({ pos, type: 'fire', color: 0xff4400, life: 30 * 60, light: fireLight, damage: config.aoeDmg });
+            } 
+            else if (name === "Flare Gun") {
+                const flareLight = new THREE.PointLight(0xff0000, 20, 50);
+                flareLight.position.copy(pos);
+                scene.add(flareLight);
+                activeAOEs.push({ pos, type: 'flare_core', color: 0xff0000, life: 30 * 60, light: flareLight, damage: config.aoeDmg });
+            }
+            else if (name === "Flashbang") {
+                spawnParticles(pos, 20, 'spark', 0xffffff);
+                const overlay = document.getElementById('flash-overlay');
+                overlay.style.opacity = 1;
+                overlay.style.transition = 'opacity 0.05s';
+                setTimeout(() => {
+                    overlay.style.transition = 'opacity 3s';
+                    overlay.style.opacity = 0;
+                }, 100);
+            }
+            else if (name === "Smoke Screen") {
+                spawnParticles(pos, 400, 'smoke', 0xcccccc);
+            }
+            else if (name === "Shock Trap") {
+                spawnParticles(pos, 100, 'spark', 0x00ffff);
+                const light = new THREE.PointLight(0x00ffff, 5, 10);
+                light.position.copy(pos);
+                scene.add(light);
+                activeAOEs.push({ pos, type: 'spark', color: 0x00ffff, life: 5 * 60, light: light, damage: config.aoeDmg });
+            }
+            else if (name === "Decoy Grenade") {
+                spawnParticles(pos, 50, 'spark', 0xffaa00);
+            }
+
+            scene.remove(obj);
+        }
+
+        function spawnBullet(dmg) {
+            const bGeo = new THREE.BoxGeometry(0.1, 0.1, 1.2); // NEW: Slightly longer bullet
+            const bMat = new THREE.MeshBasicMaterial({color: 0xffff00});
+            const b = new THREE.Mesh(bGeo, bMat);
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            b.position.copy(camera.position).add(dir.multiplyScalar(1));
+            b.lookAt(camera.position.clone().add(dir).add(dir));
+            b.userData.velocity = dir.clone().multiplyScalar(4);
+            b.userData.damage = dmg || 10;
+            scene.add(b);
+            bullets.push(b);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now();
+            const delta = 0.016;
+
+            if (controls.isLocked) {
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= 9.8 * 10.0 * delta;
+
+                direction.z = Number(moveFwd) - Number(moveBwd);
+                direction.x = Number(moveR) - Number(moveL);
+                direction.normalize();
+
+                let speed = (isSliding && isGrounded) ? 900 : 450;
+                if (moveFwd || moveBwd) velocity.z -= direction.z * speed * delta;
+                if (moveL || moveR) velocity.x -= direction.x * speed * delta;
+
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+                controls.getObject().position.y += (velocity.y * delta);
+
+                if (controls.getObject().position.y < 5) {
+                    velocity.y = 0; controls.getObject().position.y = 5; isGrounded = true;
+                } else { isGrounded = false; }
+            }
+
+            const isSprinting = isSliding && isGrounded && (moveFwd || moveL || moveR);
+            motionLines.forEach((l, i) => {
+                if(isSprinting) {
+                    l.material.opacity = 0.5;
+                    l.scale.z = 2 + Math.random() * 5;
+                    l.position.z += 1;
+                    if(l.position.z > 0) l.position.z = -15;
+                } else {
+                    l.material.opacity = THREE.MathUtils.lerp(l.material.opacity, 0, 0.1);
+                }
+            });
+
+            for(let i = damageTexts.length - 1; i >= 0; i--) {
+                if(!damageTexts[i].update()) damageTexts.splice(i, 1);
+            }
+
+            for(let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].position.add(bullets[i].userData.velocity);
+                
+                // NEW: Per-object motion blur for bullets (Dynamic stretch)
+                bullets[i].scale.z = 3.5; 
+
+                if(bullets[i].position.distanceTo(dummy.position) < 2.5) { 
+                    damageTexts.push(new DamageNumber(bullets[i].position, bullets[i].userData.damage));
+                    spawnParticles(bullets[i].position, 5, 'spark', 0xff007f);
+                    scene.remove(bullets[i]);
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                if(bullets[i].position.distanceTo(camera.position) > 300) {
+                    scene.remove(bullets[i]);
+                    bullets.splice(i, 1);
+                }
+            }
+
+            for(let i = activeAOEs.length - 1; i >= 0; i--) {
+                const aoe = activeAOEs[i];
+                if(Math.random() > 0.7) spawnParticles(aoe.pos, 2, aoe.type, aoe.color);
+                
+                if (aoe.damage && aoe.pos.distanceTo(dummy.position) < 8) {
+                    if (aoe.life % 10 === 0) {
+                        damageTexts.push(new DamageNumber(dummy.position.clone().add(new THREE.Vector3(0,2,0)), aoe.damage));
+                    }
+                }
+
+                aoe.life--;
+                if(aoe.life <= 0) {
+                    scene.remove(aoe.light);
+                    activeAOEs.splice(i, 1);
+                }
+            }
+
+            for(let i = throwables.length - 1; i >= 0; i--) {
+                const t = throwables[i];
+                t.userData.vel.y -= 0.5;
+                t.position.add(t.userData.vel.clone().multiplyScalar(0.016));
+                
+                // NEW: Per-object blur for grenades (stretching)
+                const speed = t.userData.vel.length();
+                t.scale.set(1, 1, 1 + (speed * 0.05));
+                t.lookAt(t.position.clone().add(t.userData.vel));
+
+                if (t.position.y < 0.5) {
+                    t.position.y = 0.5;
+                    if (!t.userData.grounded) {
+                        t.userData.grounded = true;
+                        setTimeout(() => {
+                            if(throwables.includes(t)) {
+                                detonate(t);
+                                const idx = throwables.indexOf(t);
+                                if(idx > -1) throwables.splice(idx, 1);
+                            }
+                        }, 100);
+                    }
+                }
+            }
+
+            for(let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if(particles[i].life <= 0) {
+                    scene.remove(particles[i].mesh);
+                    particles.splice(i, 1);
+                }
+            }
+
+            // NEW: ADS Camera & Weapon logic
+            let baseFov = (isSliding && isGrounded) ? 100 : 75;
+            const targetFov = isScoping ? 40 : baseFov;
+            camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.2);
+            camera.updateProjectionMatrix();
+
+            // NEW: ADS Weapon Positioning
+            if (weaponGroup.children[0]) {
+                const hipPos = new THREE.Vector3(0.8, -0.7, -1.2);
+                const adsPos = new THREE.Vector3(0, -0.45, -0.8);
+                const targetWeaponPos = isScoping ? adsPos : hipPos;
+                weaponGroup.children[0].position.lerp(targetWeaponPos, 0.2);
+            }
+
+            weaponGroup.position.y = Math.sin(time * 0.005) * 0.01;
+            weaponGroup.position.x = Math.cos(time * 0.003) * 0.01;
+
+            renderer.render(scene, camera);
+        }
+
+        window.onresize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+    </script>
+</body>
+</html>
