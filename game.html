@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>REVO - Advanced Combat</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@1,900&display=swap');
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Montserrat', sans-serif; user-select: none; }
@@ -98,12 +99,13 @@
 <body>
 
     <div id="map-screen">
-        <h1>SELECT ARENA</h1>
+        <h1 id="map-header">SELECT ARENA</h1>
         <div class="map-cards" id="map-cards-container">
             <div class="map-card" data-map="Playground"><h3>The Playground</h3><p>High-Contrast Plastic</p></div>
             <div class="map-card" data-map="SkyPort"><h3>Sky Port</h3><p>Clean White/Minimalist</p></div>
             <div class="map-card" data-map="Temple"><h3>Temple of Blocks</h3><p>Zen/Sand/Smooth Stone</p></div>
             <div class="map-card" data-map="Container"><h3>Container Yard</h3><p>Classic Roblox FPS</p></div>
+            <div class="map-card" data-map="Random" style="border-color: #ffd700;"><h3>Random Arena</h3><p>Let Fate Decide</p></div>
         </div>
     </div>
 
@@ -140,6 +142,62 @@
     <script type="module">
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- NETWORK & MULTIPLAYER SETUP ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameMode = urlParams.get('mode') || 'vsai';
+        const netRole = urlParams.get('role');
+        const netRoom = urlParams.get('room');
+        const isMultiplayer = (gameMode === 'online');
+        const isHost = (netRole === 'host');
+        
+        let peer;
+        let peerConn;
+        let networkPlayerObj = null;
+
+        if (isMultiplayer) {
+            // Initialize PeerJS. The host uses the room ID as their Peer ID.
+            peer = new Peer(isHost ? netRoom : undefined);
+
+            if (isHost) {
+                peer.on('connection', (conn) => {
+                    peerConn = conn;
+                    setupNetwork();
+                });
+            } else {
+                peer.on('open', () => {
+                    peerConn = peer.connect(netRoom);
+                    setupNetwork();
+                });
+                // Joiner skips picking a map manually; waits for the host to send the map signal.
+                document.getElementById('map-header').innerText = "WAITING FOR HOST TO SELECT ARENA...";
+                document.getElementById('map-cards-container').style.display = 'none';
+            }
+        }
+
+        function setupNetwork() {
+            peerConn.on('data', (data) => {
+                if (data.type === 'map_select') {
+                    selectedMap = data.map;
+                    document.getElementById('map-screen').style.display = 'none';
+                    document.getElementById('selection-screen').style.display = 'flex';
+                }
+                if (data.type === 'state' && networkPlayerObj) {
+                    networkPlayerObj.position.copy(data.pos);
+                }
+                if (data.type === 'shoot') {
+                    spawnNetworkBullet(data.pos, data.dir, data.damage);
+                }
+                if (data.type === 'hit') {
+                    takePlayerDamage(data.damage);
+                }
+                if (data.type === 'death') {
+                    pScore++;
+                    document.getElementById('p-score').innerText = pScore;
+                    resetRound();
+                }
+            });
+        }
 
         // --- CONFIG & STATE ---
         const WEAPON_CONFIG = {
@@ -187,7 +245,8 @@
         let isReloading = false;
         let isScoping = false; 
         let laserHeat = 0;
-        let health = 100;
+        let maxHealth = 300; // Buffed health by 200
+        let health = maxHealth;
 
         // MATCH STATE
         let selectedMap = null;
@@ -203,7 +262,7 @@
         let moveFwd = false, moveBwd = false, moveL = false, moveR = false, isSliding = false;
         let activeWeaponIndex = 0;
         let canShoot = true;
-        let lastDashTime = 0; // DASH COOLDOWN TRACKER
+        let lastDashTime = 0; 
         
         let bullets = [];
         let enemyBullets = []; 
@@ -214,10 +273,9 @@
         let damageTexts = [];
         let dummy;
 
-        // REUSABLE RAYCASTER FOR COLLISION & COMBAT
         const bulletRaycaster = new THREE.Raycaster();
 
-        // --- PROCEDURAL TEXTURES FOR EXTRA DETAIL ---
+        // --- PROCEDURAL TEXTURES ---
         function generateProceduralTexture(type, color1, color2) {
             const canvas = document.createElement('canvas');
             canvas.width = 256; canvas.height = 256;
@@ -269,9 +327,23 @@
         // --- UI LOGIC ---
         document.querySelectorAll('.map-card').forEach(card => {
             card.onclick = () => {
+                if(isMultiplayer && !isHost) return; // Only host chooses
+
                 document.querySelectorAll('.map-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
-                selectedMap = card.getAttribute('data-map');
+                
+                let chosenMap = card.getAttribute('data-map');
+                if (chosenMap === 'Random') {
+                    const maps = ['Playground', 'SkyPort', 'Temple', 'Container'];
+                    chosenMap = maps[Math.floor(Math.random() * maps.length)];
+                }
+                selectedMap = chosenMap;
+
+                // Transmit selection if host
+                if (isMultiplayer && isHost && peerConn && peerConn.open) {
+                    peerConn.send({ type: 'map_select', map: selectedMap });
+                }
+
                 setTimeout(() => {
                     document.getElementById('map-screen').style.display = 'none';
                     document.getElementById('selection-screen').style.display = 'flex';
@@ -323,14 +395,20 @@
             throwables.forEach(t => scene.remove(t)); throwables = [];
             particles.forEach(p => scene.remove(p.mesh)); particles = [];
             
-            health = 100;
+            health = maxHealth;
             document.getElementById('hp-bar').style.width = '100%';
-            controls.getObject().position.set(0, 20, 40);
+            
+            // Ground level spawn
+            controls.getObject().position.set(0, 10, 40);
             velocity.set(0,0,0);
             
-            aiController.health = aiController.maxHealth;
-            aiController.mesh.position.set(0, 20, -40);
-            aiController.pickNewTarget();
+            if (aiController) {
+                aiController.health = aiController.maxHealth;
+                aiController.mesh.position.set(0, 10, -40); // Ground level spawn
+                aiController.pickNewTarget();
+            } else if (networkPlayerObj) {
+                networkPlayerObj.position.set(0, 10, -40);
+            }
 
             matchTimeRemaining = roundTimeLength;
             updateTimerUI();
@@ -345,11 +423,9 @@
         // --- MAP BUILDERS ---
         function buildMap(mapType) {
             const addObj = (geo, mat, pos, rot = [0,0,0]) => {
-                // Rivals Style: Flat shading, solid saturated appearance
                 mat.flatShading = true;
                 mat.roughness = 0.8;
                 mat.metalness = 0.1;
-
                 const mesh = new THREE.Mesh(geo, mat);
                 mesh.position.set(...pos); mesh.rotation.set(...rot);
                 mesh.receiveShadow = true; mesh.castShadow = true;
@@ -423,26 +499,24 @@
                 addObj(new THREE.BoxGeometry(16, 10, 16), new THREE.MeshStandardMaterial({color: 0x444444}), [-60, 6, -30]); 
             }
 
-            // ADD UNIVERSAL ARENA BOUNDARIES (TIGHT FIT: +/- 80)
             const boundaryMat = new THREE.MeshStandardMaterial({color: 0x303040, roughness: 1.0, flatShading: true});
             addObj(new THREE.BoxGeometry(160, 100, 10), boundaryMat, [0, 50, -80]);
             addObj(new THREE.BoxGeometry(160, 100, 10), boundaryMat, [0, 50, 80]);
             addObj(new THREE.BoxGeometry(10, 100, 160), boundaryMat, [-80, 50, 0]);
             addObj(new THREE.BoxGeometry(10, 100, 160), boundaryMat, [80, 50, 0]);
 
-            // ADD RAMPS FOR TRAVERSAL
             const rampMat = new THREE.MeshStandardMaterial({color: 0xff007f, flatShading: true});
             addObj(new THREE.BoxGeometry(20, 2, 40), rampMat, [30, 5, 30], [Math.PI/6, 0, 0]);
             addObj(new THREE.BoxGeometry(20, 2, 40), rampMat, [-30, 5, -30], [-Math.PI/6, 0, 0]);
             
-            // Apply atmosphere fog for aesthetics
             scene.fog = new THREE.FogExp2(scene.background, 0.003);
         }
 
         // --- SMART AI CLASS ---
         class SmartAI {
             constructor(dummyMesh) {
-                this.mesh = dummyMesh; this.health = 100; this.maxHealth = 100; this.state = "pursue"; 
+                // Buffed health by 200
+                this.mesh = dummyMesh; this.health = 300; this.maxHealth = 300; this.state = "pursue"; 
                 this.dashCooldown = 0; this.shootCooldown = 0; this.grenadeCooldown = 500;
                 this.moveSpeed = 0.12; 
                 this.targetPos = new THREE.Vector3(); this.pickNewTarget();
@@ -457,7 +531,7 @@
 
             takeDamage(amt) {
                 this.health -= amt; spawnParticles(this.mesh.position, 10, 'spark', 0xff007f);
-                this.dashCooldown = 0; // Force dodge/dash upon hit
+                this.dashCooldown = 0; 
                 if(this.health <= 0) this.die();
             }
 
@@ -482,7 +556,6 @@
                     this.hpUI.style.width = `${(this.health/this.maxHealth) * 50}px`;
                 } else { this.hpUI.style.display = 'none'; }
 
-                // Check Line of Sight
                 const dirToPlayer = playerPos.clone().sub(this.mesh.position).normalize();
                 bulletRaycaster.set(this.mesh.position.clone().add(new THREE.Vector3(0, 2, 0)), dirToPlayer);
                 let hits = bulletRaycaster.intersectObjects(mapColliders);
@@ -493,21 +566,21 @@
                     this.state = "attack";
                     this.mesh.lookAt(playerPos.x, this.mesh.position.y, playerPos.z);
                     
-                    // Dodge / Dash
-                    if (this.dashCooldown <= 0 && Math.random() < 0.05) {
-                        const dashDir = new THREE.Vector3((Math.random()-0.5), 0, (Math.random()-0.5)).normalize().multiplyScalar(15);
+                    // Dodge / Dash NERFED
+                    if (this.dashCooldown <= 0 && Math.random() < 0.02) {
+                        const dashDir = new THREE.Vector3((Math.random()-0.5), 0, (Math.random()-0.5)).normalize().multiplyScalar(4); // Reduced from 15
                         this.mesh.position.add(dashDir); this.dashCooldown = 150; 
                         spawnParticles(this.mesh.position, 20, 'smoke', 0xffffff);
                     }
 
-                    // Jump randomly
-                    if (Math.random() < 0.02 && this.mesh.position.y < 5) {
-                        this.mesh.position.y += 10;
+                    // Jump NERFED
+                    if (Math.random() < 0.01 && this.mesh.position.y < 5) {
+                        this.mesh.position.y += 3; // Reduced from 10
                     }
 
-                    if (this.shootCooldown <= 0) {
+                    if (this.shootCooldown <= 0 && distToPlayer > 5) { // Ensure distance to not hit magically from inside
                         this.shootAtPlayer(playerPos);
-                        this.shootCooldown = Math.floor(Math.random() * 30) + 15; 
+                        this.shootCooldown = Math.floor(Math.random() * 60) + 30; // Increased cooldown
                     }
 
                     if (this.grenadeCooldown <= 0 && distToPlayer > 20) {
@@ -517,7 +590,6 @@
                     const strafe = new THREE.Vector3(1, 0, 0).applyQuaternion(this.mesh.quaternion).multiplyScalar(Math.sin(performance.now()*0.005) * this.moveSpeed * 2);
                     this.mesh.position.add(strafe);
                 } else {
-                    // Smart pathing: pursue player
                     this.state = "pursue";
                     this.targetPos = playerPos.clone();
                     this.mesh.lookAt(this.targetPos.x, this.mesh.position.y, this.targetPos.z);
@@ -525,28 +597,25 @@
                     this.mesh.position.add(dir.multiplyScalar(this.moveSpeed * 1.5));
                 }
 
-                // AI Wall & Ramp Collision
                 const aiOrigin = this.mesh.position.clone().add(new THREE.Vector3(0, 2, 0));
                 
-                // Vertical (Gravity/Ramps)
                 bulletRaycaster.set(aiOrigin, new THREE.Vector3(0, -1, 0));
                 let gHits = bulletRaycaster.intersectObjects(mapColliders);
                 let groundY = 2.5; 
                 if (gHits.length > 0 && gHits[0].distance < 20) groundY = gHits[0].point.y + 2.5;
 
                 if (this.mesh.position.y > groundY) {
-                    this.mesh.position.y -= 0.5; // fall
+                    this.mesh.position.y -= 0.5; 
                 } else if (this.mesh.position.y < groundY) {
-                    this.mesh.position.y = groundY; // snap up ramp
+                    this.mesh.position.y = groundY; 
                 }
 
-                // Horizontal Walls
                 const dirs = [new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0), new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1)];
                 for(let d of dirs) {
                     bulletRaycaster.set(aiOrigin, d);
                     let wHits = bulletRaycaster.intersectObjects(mapColliders);
                     if(wHits.length > 0 && wHits[0].distance < 2.0) {
-                        if(Math.abs(wHits[0].face.normal.y) < 0.5) { // Ignore floors/ramps for wall push
+                        if(Math.abs(wHits[0].face.normal.y) < 0.5) { 
                             let overlap = 2.0 - wHits[0].distance;
                             this.mesh.position.x += wHits[0].face.normal.x * overlap;
                             this.mesh.position.z += wHits[0].face.normal.z * overlap;
@@ -586,11 +655,11 @@
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer, nicer shadows
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0x404040, 0.7));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.2); // Brighter sun
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(100, 100, 50); sun.castShadow = true; scene.add(sun);
 
             buildMap(selectedMap || "Playground");
@@ -601,9 +670,15 @@
             const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 3, 4, 8), new THREE.MeshStandardMaterial({color: 0xff007f}));
             const head = new THREE.Mesh(new THREE.SphereGeometry(0.7), new THREE.MeshStandardMaterial({color: 0x555555}));
             head.position.y = 2.5; dummy.add(body, head);
-            dummy.position.set(0, 20, -20); scene.add(dummy);
+            dummy.position.set(0, 10, -20); scene.add(dummy);
 
-            aiController = new SmartAI(dummy);
+            // Conditional AI vs Network Player
+            if (isMultiplayer) {
+                networkPlayerObj = dummy;
+                aiController = null;
+            } else {
+                aiController = new SmartAI(dummy);
+            }
 
             const lineGroup = new THREE.Group();
             for(let i=0; i<20; i++) {
@@ -619,9 +694,8 @@
             });
 
             weaponGroup = new THREE.Group(); camera.add(weaponGroup); scene.add(controls.getObject());
-            controls.getObject().position.set(0, 50, 40);
+            controls.getObject().position.set(0, 10, 40); // Ground level spawn
 
-            // Match Timer Interval
             setInterval(() => {
                 if(matchTimeRemaining > 0) {
                     matchTimeRemaining--; updateTimerUI();
@@ -659,13 +733,12 @@
                 if(e.code === 'KeyW') moveFwd = true; if(e.code === 'KeyS') moveBwd = true;
                 if(e.code === 'KeyA') moveL = true; if(e.code === 'KeyD') moveR = true;
                 
-                // DASH LOGIC FIX - Reduced push to prevent teleporting, added cooldown
                 if((e.code === 'ControlLeft' || e.code === 'ShiftLeft') && !isSliding) { 
                     isSliding = true; 
                     if(isGrounded && performance.now() - lastDashTime > 800) {
                         const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
                         forward.y = 0; forward.normalize();
-                        velocity.add(forward.multiplyScalar(150)); // SAFE dash impulse
+                        velocity.add(forward.multiplyScalar(150)); 
                         lastDashTime = performance.now();
                     }
                 }
@@ -751,10 +824,17 @@
 
             if (activeWeaponIndex === 2) { useTactical(name, config); return; }
 
+            const targetObj = isMultiplayer ? networkPlayerObj : dummy;
+
             if (config.type === "melee") {
                 canShoot = false; weaponGroup.children[0].rotation.x = -1.2;
-                if (controls.getObject().position.distanceTo(dummy.position) < 8) {
-                    damageTexts.push(new DamageNumber(dummy.position.clone().add(new THREE.Vector3(0,2,0)), config.damage)); aiController.takeDamage(config.damage);
+                if (targetObj && controls.getObject().position.distanceTo(targetObj.position) < 8) {
+                    damageTexts.push(new DamageNumber(targetObj.position.clone().add(new THREE.Vector3(0,2,0)), config.damage)); 
+                    if (isMultiplayer) {
+                        if (peerConn && peerConn.open) peerConn.send({ type: 'hit', damage: config.damage });
+                    } else {
+                        aiController.takeDamage(config.damage);
+                    }
                 }
                 setTimeout(() => { weaponGroup.children[0].rotation.x = 0; canShoot = true; }, 1000 * (60 / config.rpm)); return;
             }
@@ -773,7 +853,7 @@
 
         function useTactical(name, config) {
             canShoot = false; updateAmmoUI();
-            if(config.type === "self") { if(name === "Stim-Shot") { health = 100; document.getElementById('hp-bar').style.width = '100%'; spawnParticles(controls.getObject().position, 50, 'spark', 0x00ff00); } } 
+            if(config.type === "self") { if(name === "Stim-Shot") { health = maxHealth; document.getElementById('hp-bar').style.width = '100%'; spawnParticles(controls.getObject().position, 50, 'spark', 0x00ff00); } } 
             else { spawnThrowable(name, config); }
             setTimeout(() => { canShoot = true; updateAmmoUI(); }, config.cooldown);
         }
@@ -789,15 +869,15 @@
             const name = obj.userData.name; const config = obj.userData.config || {aoeDmg: 15}; const pos = obj.position.clone();
             if (name === "Molotov" || name === "Enemy-Fire") {
                 const fireLight = new THREE.PointLight(0xff4400, 15, 200); fireLight.position.copy(pos); scene.add(fireLight);
-                activeAOEs.push({ pos, type: 'fire', color: 0xff4400, life: 30 * 60, light: fireLight, damage: config.aoeDmg, radius: 45 }); // WIDER
+                activeAOEs.push({ pos, type: 'fire', color: 0xff4400, life: 30 * 60, light: fireLight, damage: config.aoeDmg, radius: 45 });
             } 
             else if (name === "Flare Gun") {
                 const flareLight = new THREE.PointLight(0xff0000, 20, 250); flareLight.position.copy(pos); scene.add(flareLight);
-                activeAOEs.push({ pos, type: 'flare_core', color: 0xff0000, life: 30 * 60, light: flareLight, damage: config.aoeDmg, radius: 50 }); // WIDER
+                activeAOEs.push({ pos, type: 'flare_core', color: 0xff0000, life: 30 * 60, light: flareLight, damage: config.aoeDmg, radius: 50 });
             }
             else if (name === "Flashbang") {
                 spawnParticles(pos, 50, 'spark', 0xffffff);
-                if (pos.distanceTo(controls.getObject().position) < 120) { // FIXED FLASHBANG RANGE
+                if (pos.distanceTo(controls.getObject().position) < 120) { 
                     const overlay = document.getElementById('flash-overlay'); overlay.style.opacity = 1; overlay.style.transition = 'opacity 0.05s';
                     setTimeout(() => { overlay.style.transition = 'opacity 3s'; overlay.style.opacity = 0; }, 100);
                 }
@@ -806,7 +886,7 @@
             else if (name === "Shock Trap") {
                 spawnParticles(pos, 200, 'spark', 0x00ffff);
                 const light = new THREE.PointLight(0x00ffff, 5, 200); light.position.copy(pos); scene.add(light);
-                activeAOEs.push({ pos, type: 'spark', color: 0x00ffff, life: 5 * 60, light: light, damage: config.aoeDmg, radius: 40 }); // WIDER
+                activeAOEs.push({ pos, type: 'spark', color: 0x00ffff, life: 5 * 60, light: light, damage: config.aoeDmg, radius: 40 });
             }
             else if (name === "Decoy Grenade") { spawnParticles(pos, 50, 'spark', 0xffaa00); }
             scene.remove(obj);
@@ -818,16 +898,49 @@
             b.position.copy(camera.position).add(dir.multiplyScalar(1)); b.lookAt(camera.position.clone().add(dir).add(dir));
             b.userData = { velocity: dir.clone().multiplyScalar(5), damage: dmg || 10 }; 
             scene.add(b); bullets.push(b);
+
+            // Network transmission
+            if (isMultiplayer && peerConn && peerConn.open) {
+                peerConn.send({
+                    type: 'shoot',
+                    pos: camera.position,
+                    dir: dir,
+                    damage: dmg
+                });
+            }
+        }
+
+        // Dedicated network bullet to handle opponent's shots locally
+        function spawnNetworkBullet(pos, dirVec, dmg) {
+            const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.2), new THREE.MeshBasicMaterial({color: 0xff0000}));
+            const p = new THREE.Vector3(pos.x, pos.y, pos.z);
+            const d = new THREE.Vector3(dirVec.x, dirVec.y, dirVec.z);
+            b.position.copy(p).add(d.multiplyScalar(1));
+            b.lookAt(p.clone().add(d).add(d));
+            b.userData = { velocity: d.clone().multiplyScalar(5), damage: dmg || 10 }; 
+            scene.add(b); enemyBullets.push(b);
         }
 
         function takePlayerDamage(amt) {
-            health -= amt; document.getElementById('hp-bar').style.width = `${Math.max(0, health)}%`;
-            if (health <= 0) { eScore++; document.getElementById('e-score').innerText = eScore; resetRound(); }
+            health -= amt; 
+            document.getElementById('hp-bar').style.width = `${Math.max(0, (health/maxHealth)*100)}%`;
+            if (health <= 0) { 
+                eScore++; 
+                document.getElementById('e-score').innerText = eScore; 
+                
+                if (isMultiplayer && peerConn && peerConn.open) {
+                    peerConn.send({ type: 'death' });
+                }
+                
+                resetRound(); 
+            }
         }
 
+        let frameCount = 0;
         function animate() {
             requestAnimationFrame(animate);
             const time = performance.now(); const delta = 0.016;
+            frameCount++;
 
             if (aiController) aiController.update(controls.getObject().position, camera);
 
@@ -839,21 +952,17 @@
                 if (moveFwd || moveBwd) velocity.z -= direction.z * speed * delta;
                 if (moveL || moveR) velocity.x -= direction.x * speed * delta;
 
-                // MOVE
                 controls.moveRight(-velocity.x * delta); 
                 controls.moveForward(-velocity.z * delta); 
                 controls.getObject().position.y += (velocity.y * delta);
 
-                // CONTINUOUS RAYCAST COLLISION (PLAYER)
-                
-                // 1. Ground & Ramps
                 const pOrigin = controls.getObject().position.clone();
                 bulletRaycaster.set(new THREE.Vector3(pOrigin.x, pOrigin.y, pOrigin.z), new THREE.Vector3(0, -1, 0));
                 let gHits = bulletRaycaster.intersectObjects(mapColliders);
                 
-                let floorY = 5; // default eye level
+                let floorY = 5; 
                 if (gHits.length > 0 && gHits[0].distance < 15) {
-                    floorY = gHits[0].point.y + 5; // snap to slope + player height
+                    floorY = gHits[0].point.y + 5; 
                 }
 
                 if (controls.getObject().position.y <= floorY) { 
@@ -864,7 +973,6 @@
                     isGrounded = false; 
                 }
 
-                // 2. Horizontal Walls (FIXED: Stop Wall Phasing / Random Teleporting)
                 const hOrigin = new THREE.Vector3(controls.getObject().position.x, controls.getObject().position.y - 2.5, controls.getObject().position.z);
                 const hDirs = [
                     new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0), 
@@ -877,17 +985,20 @@
                     bulletRaycaster.set(hOrigin, dir);
                     let hits = bulletRaycaster.intersectObjects(mapColliders);
                     if (hits.length > 0 && hits[0].distance < 1.5) {
-                        // Ignore floors/ramps for horizontal pushing
                         if (Math.abs(hits[0].face.normal.y) < 0.6) {
                             let overlap = 1.5 - hits[0].distance;
                             controls.getObject().position.x += hits[0].face.normal.x * overlap;
                             controls.getObject().position.z += hits[0].face.normal.z * overlap;
 
-                            // KILL VELOCITY pushing into the wall to stabilize physics
                             if (velocity.x * hits[0].face.normal.x < 0) velocity.x = 0;
                             if (velocity.z * hits[0].face.normal.z < 0) velocity.z = 0;
                         }
                     }
+                }
+
+                // Sync Position to Peer (half rate to save bandwidth on PeerJS data channels)
+                if (isMultiplayer && peerConn && peerConn.open && frameCount % 2 === 0) {
+                    peerConn.send({ type: 'state', pos: controls.getObject().position });
                 }
             }
 
@@ -911,16 +1022,26 @@
 
                 b.position.add(b.userData.velocity); b.scale.z = 3.5; 
 
-                if(b.position.distanceTo(dummy.position) < 3.5) { 
+                const targetObj = isMultiplayer ? networkPlayerObj : dummy;
+
+                if(targetObj && b.position.distanceTo(targetObj.position) < 3.5) { 
                     damageTexts.push(new DamageNumber(b.position, b.userData.damage));
                     spawnParticles(b.position, 5, 'spark', 0xff007f);
-                    aiController.takeDamage(b.userData.damage);
+                    
+                    if (isMultiplayer) {
+                        if (peerConn && peerConn.open) {
+                            peerConn.send({ type: 'hit', damage: b.userData.damage });
+                        }
+                    } else {
+                        aiController.takeDamage(b.userData.damage);
+                    }
+                    
                     scene.remove(b); bullets.splice(i, 1); continue;
                 }
                 if(b.position.distanceTo(camera.position) > 400) { scene.remove(b); bullets.splice(i, 1); }
             }
 
-            // ENEMY BULLETS
+            // ENEMY/NETWORK BULLETS
             for(let i = enemyBullets.length - 1; i >= 0; i--) {
                 const b = enemyBullets[i];
                 bulletRaycaster.set(b.position, b.userData.velocity.clone().normalize());
@@ -936,10 +1057,11 @@
                     takePlayerDamage(b.userData.damage);
                     scene.remove(b); enemyBullets.splice(i, 1); continue;
                 }
-                if(b.position.distanceTo(dummy.position) > 400) { scene.remove(b); enemyBullets.splice(i, 1); }
+                
+                const remoteObj = isMultiplayer ? networkPlayerObj : dummy;
+                if(remoteObj && b.position.distanceTo(remoteObj.position) > 400) { scene.remove(b); enemyBullets.splice(i, 1); }
             }
 
-            // AOE EFFECTS (WIDER SPREAD)
             for(let i = activeAOEs.length - 1; i >= 0; i--) {
                 const aoe = activeAOEs[i];
                 
@@ -950,32 +1072,39 @@
                 
                 if (aoe.damage) {
                     let radius = aoe.radius || 8;
-                    if (aoe.pos.distanceTo(dummy.position) < radius && aoe.life % 10 === 0) { damageTexts.push(new DamageNumber(dummy.position.clone().add(new THREE.Vector3(0,2,0)), aoe.damage)); aiController.takeDamage(aoe.damage); }
+                    const targetObj = isMultiplayer ? networkPlayerObj : dummy;
+                    
+                    if (targetObj && aoe.pos.distanceTo(targetObj.position) < radius && aoe.life % 10 === 0) { 
+                        damageTexts.push(new DamageNumber(targetObj.position.clone().add(new THREE.Vector3(0,2,0)), aoe.damage)); 
+                        
+                        if (isMultiplayer) {
+                            if (peerConn && peerConn.open) peerConn.send({ type: 'hit', damage: aoe.damage });
+                        } else {
+                            aiController.takeDamage(aoe.damage);
+                        }
+                    }
                     if (aoe.pos.distanceTo(controls.getObject().position) < radius && aoe.life % 10 === 0) takePlayerDamage(aoe.damage); 
                 }
 
                 aoe.life--; if(aoe.life <= 0) { scene.remove(aoe.light); activeAOEs.splice(i, 1); }
             }
 
-            // THROWABLES COLLISION FIX (Check velocity direction, not just downwards)
             for(let i = throwables.length - 1; i >= 0; i--) {
                 const t = throwables[i]; t.userData.vel.y -= 0.5; t.position.add(t.userData.vel.clone().multiplyScalar(0.016));
                 const speed = t.userData.vel.length(); t.scale.set(1, 1, 1 + (speed * 0.05)); t.lookAt(t.position.clone().add(t.userData.vel));
                 
                 const stepDist = speed * 0.016;
                 
-                // Raycast in the exact direction the throwable is flying
                 bulletRaycaster.set(t.position, t.userData.vel.clone().normalize());
                 let hits = bulletRaycaster.intersectObjects(mapColliders);
                 
                 if (hits.length > 0 && hits[0].distance <= stepDist + 0.5) {
                     if (!t.userData.grounded) {
                         t.userData.grounded = true;
-                        t.position.copy(hits[0].point); // Lock to surface hit
+                        t.position.copy(hits[0].point); 
                         setTimeout(() => { if(throwables.includes(t)) { detonate(t); const idx = throwables.indexOf(t); if(idx > -1) throwables.splice(idx, 1); } }, 100);
                     }
                 } else {
-                    // Fallback downward check just in case gravity pulled it past a floor
                     bulletRaycaster.set(t.position, new THREE.Vector3(0, -1, 0));
                     let floorHits = bulletRaycaster.intersectObjects(mapColliders);
                     if (floorHits.length > 0 && floorHits[0].distance < 0.5 && !t.userData.grounded) {
