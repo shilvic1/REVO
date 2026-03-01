@@ -83,6 +83,171 @@
         #deploy-btn:hover { transform: skewX(-15deg) scale(1.05); background: #ff3399; }
         #deploy-btn:disabled { background: #333; cursor: not-allowed; box-shadow: none; opacity: 0.5; }
 
+        /* --- GAME SETTINGS BUTTON (Bottom Right) --- */
+        .game-settings-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 220;
+            background: linear-gradient(135deg, #333, #111);
+            border: 2px solid #ff007f;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 900;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+            transition: all 0.3s ease;
+        }
+        .game-settings-btn:hover {
+            background: linear-gradient(135deg, #ff007f, #cc0066);
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(255, 0, 127, 0.6);
+        }
+
+        /* --- SETTINGS MODAL --- */
+        #settings-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .settings-content {
+            background: linear-gradient(135deg, #1a1a1a, #0a0a0a);
+            border: 3px solid #ff007f;
+            border-radius: 15px;
+            padding: 30px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 0 40px rgba(255, 0, 127, 0.3);
+        }
+        .settings-content h2 {
+            color: #ff007f;
+            font-style: italic;
+            text-align: center;
+            margin-top: 0;
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.5);
+        }
+        .setting-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .setting-group label {
+            display: block;
+            color: #00ffcc;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+        .difficulty-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .difficulty-btn {
+            flex: 1;
+            min-width: 70px;
+            padding: 10px 5px;
+            background: #222;
+            border: 2px solid #444;
+            color: #888;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+        .difficulty-btn:hover { border-color: #666; }
+        .difficulty-btn.selected {
+            background: rgba(255, 0, 127, 0.2);
+            border-color: #ff007f;
+            color: white;
+            box-shadow: 0 0 10px rgba(255, 0, 127, 0.3);
+        }
+        .toggle-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: #222;
+            border-radius: 5px;
+            margin-bottom: 8px;
+        }
+        .toggle-option span {
+            color: #ccc;
+            font-size: 0.85rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #ff007f;
+        }
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+        .settings-close-btn {
+            width: 100%;
+            padding: 15px;
+            background: #ff007f;
+            border: none;
+            color: white;
+            font-weight: 900;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            text-transform: uppercase;
+            transition: 0.3s;
+        }
+        .settings-close-btn:hover {
+            background: #ff3399;
+            transform: scale(1.02);
+        }
+
         /* --- GAME UI --- */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; display: none; }
         
@@ -135,6 +300,10 @@
             <div class="map-card" data-map="Container"><h3>Container Yard</h3><p>Classic Roblox FPS</p></div>
             <div class="map-card" data-map="Random" style="border-color: #ffd700;"><h3>Random Arena</h3><p>Let Fate Decide</p></div>
         </div>
+        <!-- Settings Button for Map Screen -->
+        <button class="game-settings-btn" id="map-settings-btn">
+            <i class="fas fa-cog"></i> Settings
+        </button>
     </div>
 
     <div id="selection-screen">
@@ -142,6 +311,55 @@
         <div class="sub-text">CHOOSE YOUR LOADOUT</div>
         <div class="loadout-container" id="menu-grid"></div>
         <button id="deploy-btn" disabled>DEPLOY TO BATTLE</button>
+        <!-- Settings Button for Selection Screen -->
+        <button class="game-settings-btn" id="loadout-settings-btn" style="position: relative; margin-top: 20px;">
+            <i class="fas fa-cog"></i> Settings
+        </button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal">
+        <div class="settings-content">
+            <h2><i class="fas fa-cog"></i> GAME SETTINGS</h2>
+            
+            <!-- Difficulty Setting -->
+            <div class="setting-group">
+                <label>Difficulty Meter</label>
+                <div class="difficulty-options">
+                    <button class="difficulty-btn selected" data-difficulty="easy">Easy</button>
+                    <button class="difficulty-btn" data-difficulty="medium">Medium</button>
+                    <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+                    <button class="difficulty-btn" data-difficulty="impossible">Impossible</button>
+                </div>
+            </div>
+
+            <!-- Big Maps Setting -->
+            <div class="setting-group">
+                <label>Map Options</label>
+                <div class="toggle-option">
+                    <span>Big Maps (More props & space for long fights)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="big-maps-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Multiple Enemies Setting -->
+            <div class="setting-group">
+                <label>Enemy Options</label>
+                <div class="toggle-option">
+                    <span>Multiple Enemies (Free for all - AI vs AI)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="multiple-enemies-toggle" disabled>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <p style="font-size: 0.7rem; color: #666; margin-top: 5px;">* Multiple Enemies only available on Big Maps</p>
+            </div>
+
+            <button class="settings-close-btn" id="close-settings-btn">SAVE & CONTINUE</button>
+        </div>
     </div>
 
     <div id="ui-layer">
@@ -170,6 +388,87 @@
     <script type="module">
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- GAME SETTINGS STATE ---
+        const gameSettings = {
+            difficulty: 'easy', // easy, medium, hard, impossible
+            bigMaps: false,
+            multipleEnemies: false
+        };
+
+        // --- DIFFICULTY SETTINGS ---
+        const difficultySettings = {
+            easy: { aiSpeed: 0.08, aiAccuracy: 0.3, aiReactionTime: 60, aiHealthMult: 0.7 },
+            medium: { aiSpeed: 0.15, aiAccuracy: 0.5, aiReactionTime: 40, aiHealthMult: 1.0 },
+            hard: { aiSpeed: 0.22, aiAccuracy: 0.75, aiReactionTime: 25, aiHealthMult: 1.5 },
+            impossible: { aiSpeed: 0.35, aiAccuracy: 0.95, aiReactionTime: 10, aiHealthMult: 3.0 }
+        };
+
+        // --- SETTINGS UI LOGIC ---
+        const settingsModal = document.getElementById('settings-modal');
+        const mapSettingsBtn = document.getElementById('map-settings-btn');
+        const loadoutSettingsBtn = document.getElementById('loadout-settings-btn');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+        const bigMapsToggle = document.getElementById('big-maps-toggle');
+        const multipleEnemiesToggle = document.getElementById('multiple-enemies-toggle');
+
+        function openSettingsModal() {
+            settingsModal.style.display = 'flex';
+        }
+
+        function closeSettingsModal() {
+            settingsModal.style.display = 'none';
+            // Save settings to localStorage
+            localStorage.setItem('revoGameSettings', JSON.stringify(gameSettings));
+        }
+
+        mapSettingsBtn.addEventListener('click', openSettingsModal);
+        loadoutSettingsBtn.addEventListener('click', openSettingsModal);
+        closeSettingsBtn.addEventListener('click', closeSettingsModal);
+
+        // Difficulty button handling
+        difficultyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                difficultyBtns.forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                gameSettings.difficulty = btn.dataset.difficulty;
+            });
+        });
+
+        // Big Maps toggle
+        bigMapsToggle.addEventListener('change', () => {
+            gameSettings.bigMaps = bigMapsToggle.checked;
+            multipleEnemiesToggle.disabled = !bigMapsToggle.checked;
+            if (!bigMapsToggle.checked) {
+                multipleEnemiesToggle.checked = false;
+                gameSettings.multipleEnemies = false;
+            }
+        });
+
+        // Multiple Enemies toggle
+        multipleEnemiesToggle.addEventListener('change', () => {
+            gameSettings.multipleEnemies = multipleEnemiesToggle.checked;
+        });
+
+        // Load saved settings
+        const savedSettings = localStorage.getItem('revoGameSettings');
+        if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            Object.assign(gameSettings, parsed);
+            
+            // Apply saved settings to UI
+            difficultyBtns.forEach(btn => {
+                if (btn.dataset.difficulty === gameSettings.difficulty) {
+                    btn.classList.add('selected');
+                } else {
+                    btn.classList.remove('selected');
+                }
+            });
+            bigMapsToggle.checked = gameSettings.bigMaps;
+            multipleEnemiesToggle.checked = gameSettings.multipleEnemies;
+            multipleEnemiesToggle.disabled = !gameSettings.bigMaps;
+        }
 
         // --- NETWORK & MULTIPLAYER SETUP ---
         const urlParams = new URLSearchParams(window.location.search);
@@ -332,7 +631,7 @@
         let pScore = 0;
         let eScore = 0;
         let mapColliders = []; 
-        let aiController = null;
+        let aiControllers = []; // Array for multiple AI enemies
         let isProne = false;
         let isWallRunning = false;
         let isSprintingState = false;
@@ -357,12 +656,15 @@
         let motionLines = [];
         let damageTexts = [];
         let dummy;
+        let dummy2; // Second enemy for multiple enemies mode
 
         const bulletRaycaster = new THREE.Raycaster();
 
         // Global Stun Function
         function stunEnemies(duration) {
-            if (aiController) aiController.stun = duration;
+            aiControllers.forEach(ai => {
+                if (ai) ai.stun = duration;
+            });
         }
 
         // --- PROCEDURAL TEXTURES ---
@@ -510,7 +812,7 @@
             ann.style.opacity = 1;
             setTimeout(() => { if(!isGameOver) ann.style.opacity = 0; }, 2000);
 
-            activeAOEs.forEach(aoe => scene.remove(aoe.light)); activeAOEs = [];
+            activeAOEs.forEach(aoe => { if(aoe.light) scene.remove(aoe.light); }); activeAOEs = [];
             bullets.forEach(b => scene.remove(b)); bullets = [];
             enemyBullets.forEach(b => scene.remove(b)); enemyBullets = [];
             throwables.forEach(t => scene.remove(t)); throwables = [];
@@ -522,17 +824,33 @@
             
             let spawnP = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : new THREE.Vector3(0, 10, 40);
             let spawnE = selectedMap === "Construction" ? new THREE.Vector3(-45, 15, -120) : new THREE.Vector3(0, 10, -40);
+            let spawnE2 = selectedMap === "Construction" ? new THREE.Vector3(45, 15, -120) : new THREE.Vector3(30, 10, -30);
 
             controls.getObject().position.copy(spawnP);
             velocity.set(0,0,0);
             
-            if (aiController) {
-                aiController.health = aiController.maxHealth;
-                aiController.stun = 0;
-                aiController.mesh.position.copy(spawnE); 
-                aiController.pickNewTarget();
-                aiController.randomizeLoadout();
-            } else if (networkPlayerObj) {
+            // Reset AI enemies
+            if (gameSettings.multipleEnemies && aiControllers.length >= 2) {
+                aiControllers[0].health = aiControllers[0].maxHealth;
+                aiControllers[0].stun = 0;
+                aiControllers[0].mesh.position.copy(spawnE);
+                aiControllers[0].pickNewTarget();
+                aiControllers[0].randomizeLoadout();
+                
+                aiControllers[1].health = aiControllers[1].maxHealth;
+                aiControllers[1].stun = 0;
+                aiControllers[1].mesh.position.copy(spawnE2);
+                aiControllers[1].pickNewTarget();
+                aiControllers[1].randomizeLoadout();
+            } else if (aiControllers.length > 0 && aiControllers[0]) {
+                aiControllers[0].health = aiControllers[0].maxHealth;
+                aiControllers[0].stun = 0;
+                aiControllers[0].mesh.position.copy(spawnE); 
+                aiControllers[0].pickNewTarget();
+                aiControllers[0].randomizeLoadout();
+            }
+            
+            if (networkPlayerObj) {
                 networkPlayerObj.position.copy(spawnE);
             }
 
@@ -549,12 +867,14 @@
 
         // --- MAP BUILDERS ---
         function buildMap(mapType) {
-            const addObj = (geo, mat, pos, rot = [0,0,0]) => {
+            const addObj = (geo, mat, pos, rot = [0,0,0], scale = [1,1,1]) => {
                 mat.flatShading = true;
                 mat.roughness = 0.8;
                 mat.metalness = 0.1;
                 const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set(...pos); mesh.rotation.set(...rot);
+                mesh.position.set(...pos); 
+                mesh.rotation.set(...rot);
+                mesh.scale.set(...scale);
                 mesh.receiveShadow = true; mesh.castShadow = true;
                 scene.add(mesh); mapColliders.push(mesh);
                 return mesh;
@@ -567,142 +887,195 @@
                 pad.position.set(...pos); scene.add(pad); jumpPads.push(pad);
             };
 
-            const groundGeo = new THREE.PlaneGeometry(300, 300);
+            // Calculate map scale based on big maps setting
+            const mapScale = gameSettings.bigMaps ? 2.5 : 1;
+            const groundGeo = new THREE.PlaneGeometry(300 * mapScale, 300 * mapScale);
             
             if (mapType === "Playground") {
                 scene.background = new THREE.Color(0x87CEEB); 
-                const gridTex = generateProceduralTexture('grid', '#228B22', '#1b6b1b'); gridTex.repeat.set(30, 30);
+                const gridTex = generateProceduralTexture('grid', '#228B22', '#1b6b1b'); gridTex.repeat.set(30 * mapScale, 30 * mapScale);
                 addObj(groundGeo, new THREE.MeshStandardMaterial({map: gridTex}), [0,0,0], [-Math.PI/2,0,0]); 
                 
-                addObj(new THREE.BoxGeometry(30, 15, 30), new THREE.MeshStandardMaterial({color: 0xFFFF00}), [0, 7.5, 0]);
+                addObj(new THREE.BoxGeometry(30 * mapScale, 15, 30 * mapScale), new THREE.MeshStandardMaterial({color: 0xFFFF00}), [0, 7.5, 0]);
                 [[12,12], [-12,-12], [12,-12], [-12,12]].forEach(p => {
-                    addObj(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshStandardMaterial({color: 0xFF8C00}), [p[0], 17, p[1]]);
+                    addObj(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshStandardMaterial({color: 0xFF8C00}), [p[0] * mapScale, 17, p[1] * mapScale]);
                 });
                 
                 const wedgeGeo = new THREE.ConeGeometry(10, 20, 4);
-                addObj(wedgeGeo, new THREE.MeshStandardMaterial({color: 0x0000FF}), [-40, 5, 20], [0, Math.PI/4, Math.PI/2]);
-                addObj(wedgeGeo, new THREE.MeshStandardMaterial({color: 0x0000FF}), [-40, 5, -20], [0, -Math.PI/4, Math.PI/2]);
+                addObj(wedgeGeo, new THREE.MeshStandardMaterial({color: 0x0000FF}), [-40 * mapScale, 5, 20 * mapScale], [0, Math.PI/4, Math.PI/2]);
+                addObj(wedgeGeo, new THREE.MeshStandardMaterial({color: 0x0000FF}), [-40 * mapScale, 5, -20 * mapScale], [0, -Math.PI/4, Math.PI/2]);
 
                 for(let i=-2; i<=2; i++) {
-                    addObj(new THREE.CylinderGeometry(2, 2, 25, 16), new THREE.MeshStandardMaterial({color: 0xFF0000}), [40, 12.5, i * 15]);
+                    addObj(new THREE.CylinderGeometry(2, 2, 25, 16), new THREE.MeshStandardMaterial({color: 0xFF0000}), [40 * mapScale, 12.5, i * 15 * mapScale]);
                 }
 
-                addJumpPad([25, 0.25, 25]); 
-                addJumpPad([-25, 0.25, -25]);
+                // Add more props for big maps
+                if (gameSettings.bigMaps) {
+                    for(let i = 0; i < 20; i++) {
+                        addObj(new THREE.BoxGeometry(5, 10 + Math.random() * 20, 5), new THREE.MeshStandardMaterial({color: 0x888888}), 
+                            [(Math.random() - 0.5) * 200, 5 + Math.random() * 10, (Math.random() - 0.5) * 200]);
+                    }
+                    for(let i = 0; i < 15; i++) {
+                        addObj(new THREE.CylinderGeometry(2, 2, 15 + Math.random() * 20, 8), new THREE.MeshStandardMaterial({color: 0x444444}),
+                            [(Math.random() - 0.5) * 200, 7 + Math.random() * 10, (Math.random() - 0.5) * 200]);
+                    }
+                }
+
+                addJumpPad([25 * mapScale, 0.25, 25 * mapScale]); 
+                addJumpPad([-25 * mapScale, 0.25, -25 * mapScale]);
             } 
             else if (mapType === "SkyPort") {
                 scene.background = new THREE.Color(0x0a0a1a); 
                 
-                const tileTex = generateProceduralTexture('grid', '#eeeeee', '#cccccc'); tileTex.repeat.set(16, 8);
-                addObj(new THREE.BoxGeometry(160, 2, 80), new THREE.MeshStandardMaterial({map: tileTex}), [0, -1, 0]);
+                const tileTex = generateProceduralTexture('grid', '#eeeeee', '#cccccc'); tileTex.repeat.set(16 * mapScale, 8 * mapScale);
+                addObj(new THREE.BoxGeometry(160 * mapScale, 2, 80 * mapScale), new THREE.MeshStandardMaterial({map: tileTex}), [0, -1, 0]);
                 
-                addObj(new THREE.BoxGeometry(60, 1, 20), new THREE.MeshPhysicalMaterial({color: 0xddddff, transmission: 0.9, opacity: 1, transparent: true}), [0, 0.5, 0]);
-                addObj(new THREE.BoxGeometry(10, 8, 2), new THREE.MeshStandardMaterial({color: 0x333333}), [5, 4, 2]);
-                addObj(new THREE.BoxGeometry(2, 8, 10), new THREE.MeshStandardMaterial({color: 0x333333}), [9, 4, 6]);
-                addObj(new THREE.BoxGeometry(10, 8, 2), new THREE.MeshStandardMaterial({color: 0x333333}), [-5, 4, -2]);
-                addObj(new THREE.BoxGeometry(2, 8, 10), new THREE.MeshStandardMaterial({color: 0x333333}), [-9, 4, -6]);
+                addObj(new THREE.BoxGeometry(60 * mapScale, 1, 20), new THREE.MeshPhysicalMaterial({color: 0xddddff, transmission: 0.9, opacity: 1, transparent: true}), [0, 0.5, 0]);
+                addObj(new THREE.BoxGeometry(10, 8, 2), new THREE.MeshStandardMaterial({color: 0x333333}), [5 * mapScale, 4, 2]);
+                addObj(new THREE.BoxGeometry(2, 8, 10), new THREE.MeshStandardMaterial({color: 0x333333}), [9 * mapScale, 4, 6]);
+                addObj(new THREE.BoxGeometry(10, 8, 2), new THREE.MeshStandardMaterial({color: 0x333333}), [-5 * mapScale, 4, -2]);
+                addObj(new THREE.BoxGeometry(2, 8, 10), new THREE.MeshStandardMaterial({color: 0x333333}), [-9 * mapScale, 4, -6]);
 
-                addObj(new THREE.CylinderGeometry(3, 3, 0.5, 16), new THREE.MeshStandardMaterial({color: 0x00ff00, emissive: 0x005500}), [-50, 0.5, 20]);
-                addObj(new THREE.BoxGeometry(20, 1, 20), new THREE.MeshStandardMaterial({color: 0x555555}), [-50, 30, 0]);
+                addObj(new THREE.CylinderGeometry(3, 3, 0.5, 16), new THREE.MeshStandardMaterial({color: 0x00ff00, emissive: 0x005500}), [-50 * mapScale, 0.5, 20 * mapScale]);
+                addObj(new THREE.BoxGeometry(20, 1, 20), new THREE.MeshStandardMaterial({color: 0x555555}), [-50 * mapScale, 30, 0]);
 
-                addObj(new THREE.BoxGeometry(80, 1, 5), new THREE.MeshStandardMaterial({color: 0x888888}), [0, -10, 45]);
+                addObj(new THREE.BoxGeometry(80 * mapScale, 1, 5), new THREE.MeshStandardMaterial({color: 0x888888}), [0, -10, 45 * mapScale]);
 
-                addJumpPad([0, 0.25, 30]);
-                addJumpPad([-60, 0.25, -15]);
+                // Big map additions
+                if (gameSettings.bigMaps) {
+                    for(let i = 0; i < 30; i++) {
+                        addObj(new THREE.BoxGeometry(8, 15 + Math.random() * 25, 8), new THREE.MeshStandardMaterial({color: 0x666666}),
+                            [(Math.random() - 0.5) * 300, 7 + Math.random() * 12, (Math.random() - 0.5) * 300]);
+                    }
+                }
+
+                addJumpPad([0, 0.25, 30 * mapScale]);
+                addJumpPad([-60 * mapScale, 0.25, -15 * mapScale]);
             }
             else if (mapType === "Construction") {
                 scene.background = new THREE.Color(0x87CEEB); 
                 
-                const woodTex = generateProceduralTexture('stripes', '#8B4513', '#A0522D'); woodTex.repeat.set(10, 10);
-                const metalTex = generateProceduralTexture('grid', '#555555', '#333333'); metalTex.repeat.set(5, 5);
+                const woodTex = generateProceduralTexture('stripes', '#8B4513', '#A0522D'); woodTex.repeat.set(10 * mapScale, 10 * mapScale);
+                const metalTex = generateProceduralTexture('grid', '#555555', '#333333'); metalTex.repeat.set(5 * mapScale, 5 * mapScale);
                 
-                addObj(new THREE.BoxGeometry(90, 4, 60), new THREE.MeshStandardMaterial({map: woodTex}), [45, 8, 120]);
-                addObj(new THREE.BoxGeometry(60, 4, 120), new THREE.MeshStandardMaterial({map: woodTex}), [120, 8, 30]);
-                addObj(new THREE.BoxGeometry(90, 4, 60), new THREE.MeshStandardMaterial({map: woodTex}), [-45, 8, -120]);
-                addObj(new THREE.BoxGeometry(60, 4, 120), new THREE.MeshStandardMaterial({map: woodTex}), [-120, 8, -30]);
+                addObj(new THREE.BoxGeometry(90 * mapScale, 4, 60 * mapScale), new THREE.MeshStandardMaterial({map: woodTex}), [45 * mapScale, 8, 120 * mapScale]);
+                addObj(new THREE.BoxGeometry(60 * mapScale, 4, 120 * mapScale), new THREE.MeshStandardMaterial({map: woodTex}), [120 * mapScale, 8, 30 * mapScale]);
+                addObj(new THREE.BoxGeometry(90 * mapScale, 4, 60 * mapScale), new THREE.MeshStandardMaterial({map: woodTex}), [-45 * mapScale, 8, -120 * mapScale]);
+                addObj(new THREE.BoxGeometry(60 * mapScale, 4, 120 * mapScale), new THREE.MeshStandardMaterial({map: woodTex}), [-120 * mapScale, 8, -30 * mapScale]);
 
-                addObj(new THREE.BoxGeometry(60, 4, 60), new THREE.MeshStandardMaterial({map: metalTex}), [0, 8, 0]);
+                addObj(new THREE.BoxGeometry(60 * mapScale, 4, 60 * mapScale), new THREE.MeshStandardMaterial({map: metalTex}), [0, 8, 0]);
 
-                addObj(new THREE.BoxGeometry(18, 2, 60), new THREE.MeshStandardMaterial({map: woodTex}), [0, 8, 60]);
-                addObj(new THREE.BoxGeometry(18, 2, 60), new THREE.MeshStandardMaterial({map: woodTex}), [0, 8, -60]);
+                addObj(new THREE.BoxGeometry(18, 2, 60 * mapScale), new THREE.MeshStandardMaterial({map: woodTex}), [0, 8, 60 * mapScale]);
+                addObj(new THREE.BoxGeometry(18, 2, 60 * mapScale), new THREE.MeshStandardMaterial({map: woodTex}), [0, 8, -60 * mapScale]);
                 
-                addObj(new THREE.BoxGeometry(40, 4, 40), new THREE.MeshStandardMaterial({map: woodTex}), [120, 8, -120]);
-                addObj(new THREE.BoxGeometry(40, 4, 40), new THREE.MeshStandardMaterial({map: woodTex}), [-120, 8, 120]);
+                addObj(new THREE.BoxGeometry(40 * mapScale, 4, 40 * mapScale), new THREE.MeshStandardMaterial({map: woodTex}), [120 * mapScale, 8, -120 * mapScale]);
+                addObj(new THREE.BoxGeometry(40 * mapScale, 4, 40 * mapScale), new THREE.MeshStandardMaterial({map: woodTex}), [-120 * mapScale, 8, 120 * mapScale]);
                 
-                addObj(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({map: metalTex}), [60, 8, -60]);
-                addObj(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({map: metalTex}), [-60, 8, 60]);
+                addObj(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({map: metalTex}), [60 * mapScale, 8, -60 * mapScale]);
+                addObj(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({map: metalTex}), [-60 * mapScale, 8, 60 * mapScale]);
 
-                addObj(new THREE.BoxGeometry(24, 240, 24), new THREE.MeshStandardMaterial({color: 0xdddd00}), [-120, 120, 0]); // Tower
-                addObj(new THREE.BoxGeometry(220, 12, 12), new THREE.MeshStandardMaterial({color: 0xdddd00}), [-20, 234, 0]); // Arm
-                addObj(new THREE.CylinderGeometry(0.5, 0.5, 150), new THREE.MeshStandardMaterial({color: 0x111111}), [0, 159, 0]); // Cable
+                addObj(new THREE.BoxGeometry(24, 240, 24), new THREE.MeshStandardMaterial({color: 0xdddd00}), [-120 * mapScale, 120, 0]);
+                addObj(new THREE.BoxGeometry(220 * mapScale, 12, 12), new THREE.MeshStandardMaterial({color: 0xdddd00}), [-20 * mapScale, 234, 0]);
+                addObj(new THREE.CylinderGeometry(0.5, 0.5, 150), new THREE.MeshStandardMaterial({color: 0x111111}), [0, 159, 0]);
                 
                 // Construct Crane Ladder
                 const ladderMat = new THREE.MeshStandardMaterial({color: 0x222222});
                 for(let i=0; i<240; i+=4) {
-                    addObj(new THREE.BoxGeometry(4, 0.5, 0.5), ladderMat, [-120, i, 12.5]);
+                    addObj(new THREE.BoxGeometry(4, 0.5, 0.5), ladderMat, [-120 * mapScale, i, 12.5 * mapScale]);
                 }
 
                 addObj(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshStandardMaterial({color: 0xaa0000}), [0, 69, 0]);
                 addObj(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshStandardMaterial({color: 0x880000}), [0, 20, 0]); 
 
+                // Big map additions - more structures
+                if (gameSettings.bigMaps) {
+                    for(let i = 0; i < 25; i++) {
+                        addObj(new THREE.BoxGeometry(20 + Math.random() * 30, 20 + Math.random() * 40, 20 + Math.random() * 30), new THREE.MeshStandardMaterial({color: 0x666666}),
+                            [(Math.random() - 0.5) * 300, 10 + Math.random() * 20, (Math.random() - 0.5) * 300]);
+                    }
+                }
+
                 const barrelMat = new THREE.MeshStandardMaterial({color: 0xff0000});
-                const b1 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [120, 13, 30]); b1.userData = {isBarrel: true};
-                const b2 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [-120, 13, -30]); b2.userData = {isBarrel: true};
+                const b1 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [120 * mapScale, 13, 30 * mapScale]); b1.userData = {isBarrel: true};
+                const b2 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [-120 * mapScale, 13, -30 * mapScale]); b2.userData = {isBarrel: true};
                 const b3 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [0, 33, 0]); b3.userData = {isBarrel: true};
-                const b4 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [60, 11, -60]); b4.userData = {isBarrel: true};
-                const b5 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [-60, 11, 60]); b5.userData = {isBarrel: true};
+                const b4 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [60 * mapScale, 11, -60 * mapScale]); b4.userData = {isBarrel: true};
+                const b5 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [-60 * mapScale, 11, 60 * mapScale]); b5.userData = {isBarrel: true};
                 const b6 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [0, 13, 0]); b6.userData = {isBarrel: true};
 
-                addJumpPad([30, 10.25, 30]);
-                addJumpPad([-30, 10.25, -30]);
-                addJumpPad([0, 10.25, -45]);
+                addJumpPad([30 * mapScale, 10.25, 30 * mapScale]);
+                addJumpPad([-30 * mapScale, 10.25, -30 * mapScale]);
+                addJumpPad([0, 10.25, -45 * mapScale]);
             }
-            else { 
+            else { // Container
                 scene.background = new THREE.Color(0x222222);
                 addObj(groundGeo, new THREE.MeshStandardMaterial({color: 0x444444}), [0,0,0], [-Math.PI/2,0,0]);
 
-                const ribTex = generateProceduralTexture('stripes', '#8b0000', '#6b0000'); ribTex.repeat.set(1, 5);
-                const cGeo = new THREE.BoxGeometry(12, 12, 30);
+                const ribTex = generateProceduralTexture('stripes', '#8b0000', '#6b0000'); ribTex.repeat.set(1, 5 * mapScale);
+                const cGeo = new THREE.BoxGeometry(12, 12, 30 * mapScale);
                 const cMat = new THREE.MeshStandardMaterial({map: ribTex});
                 addObj(cGeo, cMat, [-10, 6, 0]); addObj(cGeo, cMat, [-10, 18, 0]);
                 addObj(cGeo, cMat, [10, 6, 0]);  addObj(cGeo, cMat, [10, 18, 0]);
 
-                addObj(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshStandardMaterial({color: 0xcccc00}), [-60, 5, -30]);
-                addObj(new THREE.BoxGeometry(16, 10, 16), new THREE.MeshStandardMaterial({color: 0x444444}), [-60, 6, -30]); 
+                addObj(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshStandardMaterial({color: 0xcccc00}), [-60 * mapScale, 5, -30 * mapScale]);
+                addObj(new THREE.BoxGeometry(16, 10, 16), new THREE.MeshStandardMaterial({color: 0x444444}), [-60 * mapScale, 6, -30 * mapScale]); 
 
-                addJumpPad([0, 0.25, 20]);
-                addJumpPad([0, 0.25, -20]);
+                // Big map additions
+                if (gameSettings.bigMaps) {
+                    for(let i = 0; i < 40; i++) {
+                        addObj(new THREE.BoxGeometry(15, 8 + Math.random() * 12, 25 + Math.random() * 15), new THREE.MeshStandardMaterial({color: Math.random() > 0.5 ? 0x884400 : 0x448800}),
+                            [(Math.random() - 0.5) * 350, 4 + Math.random() * 6, (Math.random() - 0.5) * 350]);
+                    }
+                }
+
+                addJumpPad([0, 0.25, 20 * mapScale]);
+                addJumpPad([0, 0.25, -20 * mapScale]);
             }
 
             if (mapType !== "Construction") {
                 const boundaryMat = new THREE.MeshStandardMaterial({color: 0x303040, roughness: 1.0, flatShading: true});
-                addObj(new THREE.BoxGeometry(160, 100, 10), boundaryMat, [0, 50, -80]);
-                addObj(new THREE.BoxGeometry(160, 100, 10), boundaryMat, [0, 50, 80]);
-                addObj(new THREE.BoxGeometry(10, 100, 160), boundaryMat, [-80, 50, 0]);
-                addObj(new THREE.BoxGeometry(10, 100, 160), boundaryMat, [80, 50, 0]);
+                const boundarySize = 160 * mapScale;
+                const boundaryHeight = 100;
+                addObj(new THREE.BoxGeometry(boundarySize, boundaryHeight, 10), boundaryMat, [0, 50, -80 * mapScale]);
+                addObj(new THREE.BoxGeometry(boundarySize, boundaryHeight, 10), boundaryMat, [0, 50, 80 * mapScale]);
+                addObj(new THREE.BoxGeometry(10, boundaryHeight, boundarySize), boundaryMat, [-80 * mapScale, 50, 0]);
+                addObj(new THREE.BoxGeometry(10, boundaryHeight, boundarySize), boundaryMat, [80 * mapScale, 50, 0]);
             }
 
             const rampMat = new THREE.MeshStandardMaterial({color: 0xff007f, flatShading: true});
-            addObj(new THREE.BoxGeometry(20, 2, 40), rampMat, [30, 5, 30], [Math.PI/6, 0, 0]);
-            addObj(new THREE.BoxGeometry(20, 2, 40), rampMat, [-30, 5, -30], [-Math.PI/6, 0, 0]);
+            addObj(new THREE.BoxGeometry(20 * mapScale, 2, 40 * mapScale), rampMat, [30 * mapScale, 5, 30 * mapScale], [Math.PI/6, 0, 0]);
+            addObj(new THREE.BoxGeometry(20 * mapScale, 2, 40 * mapScale), rampMat, [-30 * mapScale, 5, -30 * mapScale], [-Math.PI/6, 0, 0]);
             
             scene.fog = new THREE.FogExp2(scene.background, 0.003);
         }
 
         // --- SMART AI CLASS ---
         class SmartAI {
-            constructor(dummyMesh) {
-                this.mesh = dummyMesh; this.health = 300; this.maxHealth = 300; this.state = "pursue"; 
-                this.dashCooldown = 0; this.shootCooldown = 0; this.grenadeCooldown = 500;
+            constructor(dummyMesh, isSecondary = false) {
+                this.mesh = dummyMesh; 
+                const diffSettings = difficultySettings[gameSettings.difficulty];
+                this.maxHealth = 300 * diffSettings.aiHealthMult; 
+                this.health = this.maxHealth; 
+                this.state = "pursue"; 
+                this.dashCooldown = 0; 
+                this.shootCooldown = 0; 
+                this.grenadeCooldown = 500;
                 this.stun = 0;
-                this.moveSpeed = 0.15; 
-                this.targetPos = new THREE.Vector3(); this.pickNewTarget();
+                this.moveSpeed = diffSettings.aiSpeed; 
+                this.accuracy = diffSettings.aiAccuracy;
+                this.reactionTime = diffSettings.aiReactionTime;
+                this.isSecondary = isSecondary;
+                this.targetPos = new THREE.Vector3(); 
+                this.pickNewTarget();
                 
                 this.randomizeLoadout();
                 
                 this.hpUI = document.createElement('div');
-                this.hpUI.style.position = 'absolute'; this.hpUI.style.width = '50px'; this.hpUI.style.height = '5px';
-                this.hpUI.style.background = 'red'; this.hpUI.style.border = '1px solid black';
+                this.hpUI.style.position = 'absolute'; 
+                this.hpUI.style.width = '50px'; 
+                this.hpUI.style.height = '5px';
+                this.hpUI.style.background = isSecondary ? '#ffaa00' : 'red'; 
+                this.hpUI.style.border = '1px solid black';
                 document.getElementById('ui-layer').appendChild(this.hpUI);
             }
             
@@ -718,25 +1091,81 @@
             }
 
             pickNewTarget() { 
-                let range = selectedMap === "Construction" ? 240 : 80;
-                this.targetPos.set((Math.random()-0.5)*range, 2.5, (Math.random()-0.5)*range); 
+                let range = (selectedMap === "Construction" ? 240 : 80) * (gameSettings.bigMaps ? 2.5 : 1);
+                if (gameSettings.multipleEnemies) {
+                    // In multiple enemies mode, target the player or other AI
+                    if (this.isSecondary) {
+                        // Target the first AI (which is the main enemy)
+                        this.targetPos = aiControllers[0] ? aiControllers[0].mesh.position.clone() : controls.getObject().position.clone();
+                    } else {
+                        // Either target player or secondary AI
+                        this.targetPos = Math.random() > 0.3 
+                            ? controls.getObject().position.clone() 
+                            : (aiControllers[1] ? aiControllers[1].mesh.position.clone() : controls.getObject().position.clone());
+                    }
+                    this.targetPos.y = 2.5;
+                } else {
+                    this.targetPos.set((Math.random()-0.5)*range, 2.5, (Math.random()-0.5)*range); 
+                }
             }
 
             takeDamage(amt) {
-                this.health -= amt; spawnParticles(this.mesh.position, 10, 'spark', 0xff007f);
+                this.health -= amt; 
+                spawnParticles(this.mesh.position, 10, 'spark', this.isSecondary ? 0xffaa00 : 0xff007f);
                 this.dashCooldown = 0; 
                 if(this.health <= 0) this.die();
             }
 
             die() {
-                pScore++; document.getElementById('p-score').innerText = pScore;
-                if(!checkGameEnd()) resetRound(); 
+                if (this.isSecondary) {
+                    // Secondary enemy died
+                    if (!gameSettings.multipleEnemies) {
+                        pScore++; 
+                        document.getElementById('p-score').innerText = pScore;
+                    }
+                    // In multiple enemies mode, if one AI kills another, the killer gets a point
+                    if (gameSettings.multipleEnemies) {
+                        // Find who killed this AI and give them a point
+                        if (aiControllers[0] === this) {
+                            // First AI died, second AI gets point
+                            eScore++; 
+                        } else {
+                            pScore++;
+                        }
+                        document.getElementById('p-score').innerText = pScore;
+                        document.getElementById('e-score').innerText = eScore;
+                    }
+                } else {
+                    // Primary enemy died
+                    if (gameSettings.multipleEnemies && aiControllers[1] && aiControllers[1].health > 0) {
+                        // Secondary AI killed primary, give point to secondary (enemy score)
+                        eScore++;
+                        document.getElementById('e-score').innerText = eScore;
+                    } else {
+                        pScore++; 
+                        document.getElementById('p-score').innerText = pScore;
+                    }
+                }
+                
+                if(!checkGameEnd()) {
+                    // Respawn in multiple enemies mode
+                    if (gameSettings.multipleEnemies) {
+                        this.health = this.maxHealth;
+                        this.stun = 0;
+                        let range = (selectedMap === "Construction" ? 240 : 80) * (gameSettings.bigMaps ? 2.5 : 1);
+                        this.mesh.position.set((Math.random()-0.5)*range, 10, (Math.random()-0.5)*range);
+                        this.pickNewTarget();
+                        this.randomizeLoadout();
+                    } else {
+                        resetRound();
+                    }
+                }
             }
 
-            update(playerPos, cameraObj) {
+            update(playerPos, cameraObj, otherAI = null) {
                 if (this.stun > 0) {
                     this.stun--;
-                    if (this.stun % 5 === 0) spawnParticles(this.mesh.position.clone().add(new THREE.Vector3(0,2,0)), 10, 'spark', 0xffff00);
+                    if (this.stun % 5 === 0) spawnParticles(this.mesh.position.clone().add(new THREE.Vector3(0,2,0)), 5, 'spark', 0xffff00);
                     return; // Prevent actions and movement when stunned
                 }
 
@@ -748,10 +1177,16 @@
                     this.takeDamage(this.maxHealth + 100);
                 }
 
-                const distToPlayer = this.mesh.position.distanceTo(playerPos);
+                // Determine target based on mode
+                let targetPos = playerPos;
+                if (gameSettings.multipleEnemies && otherAI) {
+                    targetPos = otherAI.mesh.position;
+                }
+
+                const distToTarget = this.mesh.position.distanceTo(targetPos);
                 
-                if (distToPlayer < 10) this.activeWeaponName = this.loadout.melee;
-                else if (distToPlayer < 40) this.activeWeaponName = this.loadout.secondary;
+                if (distToTarget < 10) this.activeWeaponName = this.loadout.melee;
+                else if (distToTarget < 40) this.activeWeaponName = this.loadout.secondary;
                 else this.activeWeaponName = this.loadout.primary;
 
                 const config = WEAPON_CONFIG[this.activeWeaponName];
@@ -765,38 +1200,38 @@
                     this.hpUI.style.width = `${(this.health/this.maxHealth) * 50}px`;
                 } else { this.hpUI.style.display = 'none'; }
 
-                const dirToPlayer = playerPos.clone().sub(this.mesh.position).normalize();
-                bulletRaycaster.set(this.mesh.position.clone().add(new THREE.Vector3(0, 2, 0)), dirToPlayer);
+                const dirToTarget = targetPos.clone().sub(this.mesh.position).normalize();
+                bulletRaycaster.set(this.mesh.position.clone().add(new THREE.Vector3(0, 2, 0)), dirToTarget);
                 let hits = bulletRaycaster.intersectObjects(mapColliders);
                 let hasLOS = true;
-                if (hits.length > 0 && hits[0].distance < distToPlayer) hasLOS = false;
+                if (hits.length > 0 && hits[0].distance < distToTarget) hasLOS = false;
 
                 let moveDir = new THREE.Vector3(0,0,0);
 
-                if (distToPlayer < 300 && hasLOS) {
+                if (distToTarget < 300 && hasLOS) {
                     this.state = "attack";
-                    this.mesh.lookAt(playerPos.x, this.mesh.position.y, playerPos.z);
+                    this.mesh.lookAt(targetPos.x, this.mesh.position.y, targetPos.z);
                     
                     if (this.dashCooldown <= 0 && Math.random() < 0.02) {
                         const dashDir = new THREE.Vector3((Math.random()-0.5), 0, (Math.random()-0.5)).normalize().multiplyScalar(4); 
                         this.mesh.position.add(dashDir); this.dashCooldown = 150; 
-                        spawnParticles(this.mesh.position, 20, 'smoke', 0xffffff);
+                        spawnParticles(this.mesh.position, 10, 'smoke', 0xffffff);
                     }
 
-                    if (this.shootCooldown <= 0 && distToPlayer > (config.type === "melee" ? 0 : 3)) { 
-                        this.shootAtPlayer(playerPos, config);
+                    if (this.shootCooldown <= 0 && distToTarget > (config.type === "melee" ? 0 : 3)) { 
+                        this.shootAtTarget(targetPos, config);
                         let rpmCalc = config.rpm ? (60000 / config.rpm) : 500;
-                        this.shootCooldown = Math.floor(rpmCalc / 16) + Math.floor(Math.random() * 10); 
+                        this.shootCooldown = Math.floor(rpmCalc / 16) + Math.floor(Math.random() * this.reactionTime); 
                     }
 
-                    if (this.grenadeCooldown <= 0 && distToPlayer > 15) {
-                        this.useTactical(playerPos); this.grenadeCooldown = 500; 
+                    if (this.grenadeCooldown <= 0 && distToTarget > 15) {
+                        this.useTactical(targetPos); this.grenadeCooldown = 500; 
                     }
 
                     moveDir = new THREE.Vector3(1, 0, 0).applyQuaternion(this.mesh.quaternion).multiplyScalar(Math.sin(performance.now()*0.005) * this.moveSpeed * 2);
                 } else {
                     this.state = "pursue";
-                    this.targetPos = playerPos.clone();
+                    this.targetPos = targetPos.clone();
                     this.mesh.lookAt(this.targetPos.x, this.mesh.position.y, this.targetPos.z);
                     moveDir = this.targetPos.clone().sub(this.mesh.position).normalize().multiplyScalar(this.moveSpeed * 1.5);
                 }
@@ -846,11 +1281,18 @@
                 }
             }
 
-            shootAtPlayer(playerPos, config) {
+            shootAtTarget(targetPos, config) {
                 if (config.type === "melee") {
                     weaponGroup.children[0].rotation.x = -1.2; 
-                    if (this.mesh.position.distanceTo(playerPos) < 6) {
-                        takePlayerDamage(config.damage);
+                    if (this.mesh.position.distanceTo(targetPos) < 6) {
+                        // Check who the target is
+                        if (targetPos === controls.getObject().position) {
+                            takePlayerDamage(config.damage);
+                        } else if (gameSettings.multipleEnemies && aiControllers.length > 0) {
+                            // AI vs AI damage
+                            const otherAI = this.isSecondary ? aiControllers[0] : (aiControllers[1] || null);
+                            if (otherAI) otherAI.takeDamage(config.damage);
+                        }
                     }
                     setTimeout(() => { if(weaponGroup.children[0]) weaponGroup.children[0].rotation.x = 0; }, 200);
                     return;
@@ -859,23 +1301,31 @@
                 const bGeo = new THREE.BoxGeometry(0.1, 0.1, 1.2);
                 const bMat = new THREE.MeshBasicMaterial({color: config.color || 0xff0000}); 
                 const b = new THREE.Mesh(bGeo, bMat);
-                const target = playerPos.clone().add(new THREE.Vector3((Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5));
+                const aimOffset = new THREE.Vector3((Math.random()-0.5)*this.accuracy, (Math.random()-0.5)*this.accuracy, (Math.random()-0.5)*this.accuracy);
+                const target = targetPos.clone().add(aimOffset);
                 const dir = target.sub(this.mesh.position.clone().add(new THREE.Vector3(0,2,0))).normalize();
                 
                 b.position.copy(this.mesh.position).add(new THREE.Vector3(0,2,0)).add(dir.multiplyScalar(2));
                 b.lookAt(b.position.clone().add(dir));
-                b.userData = { velocity: dir.multiplyScalar(4), damage: config.damage || 15, perk: this.loadout.perk, hasRebounded: false };
+                b.userData = { 
+                    velocity: dir.multiplyScalar(4), 
+                    damage: config.damage || 15, 
+                    perk: this.loadout.perk, 
+                    hasRebounded: false,
+                    isEnemyBullet: true,
+                    sourceAI: this
+                };
                 scene.add(b); enemyBullets.push(b);
             }
 
-            useTactical(playerPos) {
+            useTactical(targetPos) {
                 const tactName = this.loadout.tactical;
                 const config = WEAPON_CONFIG[tactName];
                 
                 if (config.type === "self") {
                     if (tactName === "Stim-Shot") {
                         this.health = this.maxHealth;
-                        spawnParticles(this.mesh.position, 50, 'spark', 0x00ff00);
+                        spawnParticles(this.mesh.position, 20, 'spark', 0x00ff00);
                     }
                     return;
                 }
@@ -883,10 +1333,10 @@
                 const geo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
                 const mat = new THREE.MeshStandardMaterial({color: config.color}); 
                 const mesh = new THREE.Mesh(geo, mat);
-                const dir = playerPos.clone().sub(this.mesh.position).normalize();
+                const dir = targetPos.clone().sub(this.mesh.position).normalize();
                 mesh.position.copy(this.mesh.position).add(new THREE.Vector3(0,3,0));
                 
-                mesh.userData = { vel: dir.multiplyScalar(20).add(new THREE.Vector3(0, 8, 0)), type: "grenade", name: tactName, config: config, grounded: false };
+                mesh.userData = { vel: dir.multiplyScalar(20).add(new THREE.Vector3(0, 8, 0)), type: "grenade", name: tactName, config: config, grounded: false, sourceAI: this };
                 scene.add(mesh); throwables.push(mesh);
             }
         }
@@ -918,11 +1368,23 @@
             head.position.y = 2.5; dummy.add(body, head);
             dummy.position.copy(spawnE); scene.add(dummy);
 
-            if (isMultiplayer) {
-                networkPlayerObj = dummy;
-                aiController = null;
+            // Create second enemy for multiple enemies mode
+            if (gameSettings.multipleEnemies) {
+                dummy2 = new THREE.Group();
+                const body2 = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 3, 4, 8), new THREE.MeshStandardMaterial({color: 0xffaa00}));
+                const head2 = new THREE.Mesh(new THREE.SphereGeometry(0.7), new THREE.MeshStandardMaterial({color: 0x555555}));
+                head2.position.y = 2.5; dummy2.add(body2, head2);
+                let spawnE2 = selectedMap === "Construction" ? new THREE.Vector3(45, 15, -120) : new THREE.Vector3(30, 10, -30);
+                dummy2.position.copy(spawnE2); scene.add(dummy2);
+                aiControllers.push(new SmartAI(dummy, false));
+                aiControllers.push(new SmartAI(dummy2, true));
             } else {
-                aiController = new SmartAI(dummy);
+                if (isMultiplayer) {
+                    networkPlayerObj = dummy;
+                    aiController = null;
+                } else {
+                    aiControllers.push(new SmartAI(dummy, false));
+                }
             }
 
             const lineGroup = new THREE.Group();
@@ -1029,16 +1491,15 @@
                 
                 if(e.button === 2) {
                     if (selectedItems[activeWeaponIndex] === "OBS") {
-                        // OBS Secondary Attack - Massive spawn where you look
-                        stunEnemies(300); // Stun AI for 5 seconds
+                        stunEnemies(300);
                         const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
                         
                         bulletRaycaster.set(camera.position, dir);
                         let hits = bulletRaycaster.intersectObjects(mapColliders);
                         let center = hits.length > 0 ? hits[0].point : camera.position.clone().add(dir.multiplyScalar(100));
 
-                        for(let i=0; i<100; i++) { // Massive TNT Storm
-                            let angle = (i / 100) * Math.PI * 2;
+                        for(let i=0; i<40; i++) {
+                            let angle = (i / 40) * Math.PI * 2;
                             let radius = Math.random() * 40;
                             let offset = new THREE.Vector3(Math.cos(angle)*radius, 10 + Math.random()*30, Math.sin(angle)*radius);
                             spawnTNT(center.clone().add(offset), true);
@@ -1053,7 +1514,6 @@
                 if(e.button === 2) isScoping = false; 
             };
 
-            // WEAPON SWAY INPUT
             window.addEventListener('mousemove', (e) => {
                 if(!controls.isLocked) return;
                 targetSway.x -= e.movementX * 0.001;
@@ -1117,9 +1577,10 @@
         class Particle {
             constructor(pos, type, color) {
                 this.pos = pos.clone(); this.type = type; this.life = 1.0;
-                if (type === 'fire') { this.vel = new THREE.Vector3((Math.random()-0.5)*15, Math.random()*25, (Math.random()-0.5)*15); this.decay = 0.01 + Math.random()*0.02; this.size = 5 + Math.random()*3; } 
-                else if (type === 'smoke') { this.vel = new THREE.Vector3((Math.random()-0.5)*10, Math.random()*15, (Math.random()-0.5)*10); this.decay = 0.005; this.size = 10 + Math.random()*15; } 
-                else if (type === 'spark') { this.vel = new THREE.Vector3((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*40); this.decay = 0.05; this.size = 1.0; } 
+                
+                if (type === 'fire') { this.vel = new THREE.Vector3((Math.random()-0.5)*15, Math.random()*25, (Math.random()-0.5)*15); this.decay = 0.01 + Math.random()*0.02; this.size = 15 + Math.random()*10; } 
+                else if (type === 'smoke') { this.vel = new THREE.Vector3((Math.random()-0.5)*10, Math.random()*15, (Math.random()-0.5)*10); this.decay = 0.005; this.size = 25 + Math.random()*20; } 
+                else if (type === 'spark') { this.vel = new THREE.Vector3((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*40); this.decay = 0.05; this.size = 3.0; } 
                 else if (type === 'flash') { this.vel = new THREE.Vector3(0,0,0); this.decay = 0.1; this.size = 20; } 
                 else if (type === 'flare_core') { this.vel = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*15, (Math.random()-0.5)*2); this.decay = 0.02; this.size = 4; }
 
@@ -1146,14 +1607,14 @@
 
             if (config.type === "obs") {
                 canShoot = false;
-                stunEnemies(300); // Stun AI for 5 seconds
+                stunEnemies(300);
                 const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
                 
                 bulletRaycaster.set(camera.position, dir);
                 let hits = bulletRaycaster.intersectObjects(mapColliders);
                 let center = hits.length > 0 ? hits[0].point : camera.position.clone().add(dir.multiplyScalar(100));
 
-                for(let i=0; i<50; i++) { // Increased Payload
+                for(let i=0; i<20; i++) {
                     spawnTNT(center.clone().add(new THREE.Vector3((Math.random()-0.5)*30, Math.random()*20 + 10, (Math.random()-0.5)*30)), false);
                 }
                 if(weaponGroup.children[0]) weaponGroup.children[0].rotation.x = -0.5;
@@ -1168,7 +1629,7 @@
                     if (isMultiplayer) {
                         if (peerConn && peerConn.open) peerConn.send({ type: 'hit', damage: config.damage });
                     } else {
-                        aiController.takeDamage(config.damage);
+                        aiControllers.forEach(ai => { if(ai && ai.mesh === targetObj) ai.takeDamage(config.damage); });
                     }
                 }
                 setTimeout(() => { weaponGroup.children[0].rotation.x = 0; canShoot = true; }, 1000 * (60 / config.rpm)); return;
@@ -1191,7 +1652,7 @@
             if(config.type === "self") { 
                 if(name === "Stim-Shot") { 
                     health = maxHealth; document.getElementById('hp-bar').style.width = '100%'; 
-                    spawnParticles(controls.getObject().position, 50, 'spark', 0x00ff00); 
+                    spawnParticles(controls.getObject().position, 30, 'spark', 0x00ff00); 
                     if (isMultiplayer && peerConn && peerConn.open) {
                         peerConn.send({ type: 'tactical_self', name: name });
                     }
@@ -1231,16 +1692,21 @@
         function detonateTNT(t) {
             const pos = t.position.clone();
             scene.remove(t);
-            // HUGE VFX
-            spawnParticles(pos, 300, 'fire', 0xffaa00);
-            spawnParticles(pos, 200, 'smoke', 0x555555);
-            spawnParticles(pos, 200, 'spark', 0xffffff);
-            const light = new THREE.PointLight(0xffaa00, 100, 800); light.position.copy(pos); scene.add(light);
             
-            // HUGE DAMAGE AND AOE RADIUS
+            spawnParticles(pos, 15, 'fire', 0xffaa00);
+            spawnParticles(pos, 10, 'smoke', 0x555555);
+            spawnParticles(pos, 15, 'spark', 0xffffff);
+            
+            let light = null;
+            let currentLights = activeAOEs.filter(a => a.light).length;
+            if (currentLights < 3) {
+                light = new THREE.PointLight(0xffaa00, 50, 800); 
+                light.position.copy(pos); 
+                scene.add(light);
+            }
+            
             activeAOEs.push({ pos, type: 'fire', color: 0xffaa00, life: 20, light: light, damage: 1500, radius: 80 });
 
-            // Trigger a strong camera shake
             currentSway.x += (Math.random() - 0.5) * 0.8;
             currentSway.y += (Math.random() - 0.5) * 0.8;
         }
@@ -1256,19 +1722,19 @@
                 activeAOEs.push({ pos, type: 'flare_core', color: 0xff0000, life: 30 * 60, light: flareLight, damage: config.aoeDmg, radius: config.radius || 20 });
             }
             else if (name === "Flashbang") {
-                spawnParticles(pos, 50, 'spark', 0xffffff);
+                spawnParticles(pos, 30, 'spark', 0xffffff);
                 if (pos.distanceTo(controls.getObject().position) < 60) { 
                     const overlay = document.getElementById('flash-overlay'); overlay.style.opacity = 1; overlay.style.transition = 'opacity 0.05s';
                     setTimeout(() => { overlay.style.transition = 'opacity 3s'; overlay.style.opacity = 0; }, 100);
                 }
             }
-            else if (name === "Smoke Screen") { spawnParticles(pos, 400, 'smoke', 0xcccccc); }
+            else if (name === "Smoke Screen") { spawnParticles(pos, 50, 'smoke', 0xcccccc); }
             else if (name === "Shock Trap") {
-                spawnParticles(pos, 200, 'spark', 0x00ffff);
+                spawnParticles(pos, 50, 'spark', 0x00ffff);
                 const light = new THREE.PointLight(0x00ffff, 5, 200); light.position.copy(pos); scene.add(light);
                 activeAOEs.push({ pos, type: 'spark', color: 0x00ffff, life: 5 * 60, light: light, damage: config.aoeDmg, radius: config.radius || 12 });
             }
-            else if (name === "Decoy Grenade") { spawnParticles(pos, 50, 'spark', 0xffaa00); }
+            else if (name === "Decoy Grenade") { spawnParticles(pos, 30, 'spark', 0xffaa00); }
             scene.remove(obj);
         }
 
@@ -1278,7 +1744,7 @@
             const idx = mapColliders.indexOf(barrel);
             if(idx > -1) mapColliders.splice(idx, 1);
             
-            spawnParticles(pos, 50, 'fire', 0xff4400);
+            spawnParticles(pos, 30, 'fire', 0xff4400);
             const fireLight = new THREE.PointLight(0xff4400, 15, 200); fireLight.position.copy(pos); scene.add(fireLight);
             activeAOEs.push({ pos, type: 'fire', color: 0xff4400, life: 11, light: fireLight, damage: 150, radius: 40 });
         }
@@ -1343,7 +1809,18 @@
             const time = performance.now(); const delta = 0.016;
             frameCount++;
 
-            if (aiController) aiController.update(controls.getObject().position, camera);
+            // Update all AI controllers
+            aiControllers.forEach(ai => {
+                if (ai) {
+                    if (gameSettings.multipleEnemies && aiControllers.length >= 2) {
+                        // In multiple enemies mode, pass the other AI as target
+                        const otherAI = ai === aiControllers[0] ? aiControllers[1] : aiControllers[0];
+                        ai.update(controls.getObject().position, camera, otherAI);
+                    } else {
+                        ai.update(controls.getObject().position, camera);
+                    }
+                }
+            });
 
             // UPDATE WEAPON SWAY
             targetSway.lerp(new THREE.Vector2(0,0), 0.05);
@@ -1357,7 +1834,6 @@
                 velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 12.0 * delta; 
                 direction.z = Number(moveFwd) - Number(moveBwd); direction.x = Number(moveR) - Number(moveL); direction.normalize();
 
-                // WEIGHT SYSTEM & SPRINT LOGIC
                 let baseSpeed = isProne ? 150 : ((isSliding && isGrounded) ? 900 : (isWallRunning ? 700 : (isSprintingState && moveFwd ? 800 : 500))); 
                 let weightMult = WEAPON_CONFIG[selectedItems[activeWeaponIndex]]?.weight || 1.0;
                 let speed = baseSpeed * weightMult;
@@ -1429,7 +1905,7 @@
                     if (dx*dx + dz*dz < 25 && dy > 0 && dy < 10 && velocity.y <= 0) {
                         velocity.y = 120; 
                         isGrounded = false;
-                        spawnParticles(pad.position, 20, 'spark', 0x00ffcc);
+                        spawnParticles(pad.position, 15, 'spark', 0x00ffcc);
                     }
                 });
 
@@ -1496,7 +1972,7 @@
                     if (hits[0].object.userData.isBarrel) {
                         detonateBarrel(hits[0].object);
                     } else {
-                        spawnParticles(hits[0].point, 5, 'spark', 0xaaaaaa);
+                        spawnParticles(hits[0].point, 3, 'spark', 0xaaaaaa);
                         
                         if (b.userData.perk === "Rebound" && !b.userData.hasRebounded && Math.random() < 0.55) {
                             b.userData.hasRebounded = true;
@@ -1511,30 +1987,28 @@
 
                 b.position.add(b.userData.velocity); b.scale.z = 3.5; 
 
-                const targetObj = isMultiplayer ? networkPlayerObj : dummy;
-
-                if(targetObj && b.position.distanceTo(targetObj.position) < 3.5) { 
-                    
-                    let isHeadshot = (b.position.y - targetObj.position.y) >= 1.8;
-                    let finalDmg = b.userData.damage;
-                    
-                    if (b.userData.perk === "Head-Hunter") {
-                        finalDmg = isHeadshot ? finalDmg * 2.0 : finalDmg * 0.5; 
-                    } else {
-                        finalDmg = isHeadshot ? finalDmg * 1.5 : finalDmg; 
-                    }
-                    
-                    damageTexts.push(new DamageNumber(b.position, finalDmg));
-                    spawnParticles(b.position, 5, 'spark', isHeadshot ? 0xff0000 : 0xff007f);
-                    
-                    if (isMultiplayer) {
-                        if (peerConn && peerConn.open) {
-                            peerConn.send({ type: 'hit', damage: finalDmg });
+                // Check collision with all AI enemies
+                let hitAny = false;
+                aiControllers.forEach(ai => {
+                    if(ai && b.position.distanceTo(ai.mesh.position) < 3.5) {
+                        let isHeadshot = (b.position.y - ai.mesh.position.y) >= 1.8;
+                        let finalDmg = b.userData.damage;
+                        
+                        if (b.userData.perk === "Head-Hunter") {
+                            finalDmg = isHeadshot ? finalDmg * 2.0 : finalDmg * 0.5; 
+                        } else {
+                            finalDmg = isHeadshot ? finalDmg * 1.5 : finalDmg; 
                         }
-                    } else {
-                        aiController.takeDamage(finalDmg);
+                        
+                        damageTexts.push(new DamageNumber(b.position, finalDmg));
+                        spawnParticles(b.position, 5, 'spark', isHeadshot ? 0xff0000 : 0xff007f);
+                        
+                        ai.takeDamage(finalDmg);
+                        hitAny = true;
                     }
-                    
+                });
+                
+                if (hitAny) {
                     scene.remove(b); bullets.splice(i, 1); continue;
                 }
                 if(b.position.distanceTo(camera.position) > 1000) { scene.remove(b); bullets.splice(i, 1); }
@@ -1548,7 +2022,7 @@
                     if (hits[0].object.userData.isBarrel) {
                         detonateBarrel(hits[0].object);
                     } else {
-                        spawnParticles(hits[0].point, 5, 'spark', 0xaaaaaa);
+                        spawnParticles(hits[0].point, 3, 'spark', 0xaaaaaa);
 
                         if (b.userData.perk === "Rebound" && !b.userData.hasRebounded && Math.random() < 0.55) {
                             b.userData.hasRebounded = true;
@@ -1579,8 +2053,7 @@
                     scene.remove(b); enemyBullets.splice(i, 1); continue;
                 }
                 
-                const remoteObj = isMultiplayer ? networkPlayerObj : dummy;
-                if(remoteObj && b.position.distanceTo(remoteObj.position) > 1000) { scene.remove(b); enemyBullets.splice(i, 1); }
+                if(b.position.distanceTo(camera.position) > 1000) { scene.remove(b); enemyBullets.splice(i, 1); }
             }
 
             for(let i = activeAOEs.length - 1; i >= 0; i--) {
@@ -1588,29 +2061,31 @@
                 
                 if(Math.random() > 0.3) {
                     let spread = aoe.radius ? aoe.radius * 0.8 : 2;
-                    spawnParticles(aoe.pos.clone().add(new THREE.Vector3((Math.random()-0.5)*spread, Math.random()*2, (Math.random()-0.5)*spread)), 2, aoe.type, aoe.color);
+                    spawnParticles(aoe.pos.clone().add(new THREE.Vector3((Math.random()-0.5)*spread, Math.random()*2, (Math.random()-0.5)*spread)), 1, aoe.type, aoe.color);
                 }
                 
                 if (aoe.damage) {
                     let radius = aoe.radius || 15;
-                    const targetObj = isMultiplayer ? networkPlayerObj : dummy;
                     
-                    if (targetObj && aoe.pos.distanceTo(targetObj.position) < radius && aoe.life % 10 === 0) { 
-                        damageTexts.push(new DamageNumber(targetObj.position.clone().add(new THREE.Vector3(0,2,0)), aoe.damage)); 
-                        
-                        if (isMultiplayer) {
-                            if (peerConn && peerConn.open) peerConn.send({ type: 'hit', damage: aoe.damage });
-                        } else {
-                            aiController.takeDamage(aoe.damage);
-                        }
-                    }
-                    
+                    // Damage to player
                     if (aoe.pos.distanceTo(controls.getObject().position) < radius && aoe.life % 10 === 0) {
                         takePlayerDamage(aoe.damage); 
                     }
+                    
+                    // Damage to AI enemies
+                    aiControllers.forEach(ai => {
+                        if(ai && aoe.pos.distanceTo(ai.mesh.position) < radius && aoe.life % 10 === 0) {
+                            damageTexts.push(new DamageNumber(ai.mesh.position.clone().add(new THREE.Vector3(0,2,0)), aoe.damage)); 
+                            ai.takeDamage(aoe.damage);
+                        }
+                    });
                 }
 
-                aoe.life--; if(aoe.life <= 0) { scene.remove(aoe.light); activeAOEs.splice(i, 1); }
+                aoe.life--; 
+                if(aoe.life <= 0) { 
+                    if(aoe.light) scene.remove(aoe.light); 
+                    activeAOEs.splice(i, 1); 
+                }
             }
 
             for(let i = throwables.length - 1; i >= 0; i--) {
