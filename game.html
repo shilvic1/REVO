@@ -273,11 +273,29 @@
         .ch-v { width: 4px; height: 10px; } .ch-h { width: 10px; height: 4px; }
         .ch-top { top: 0; left: 10px; } .ch-bottom { bottom: 0; left: 10px; } .ch-left { left: 0; top: 10px; } .ch-right { right: 0; top: 10px; }
         
+        /* USERNAME ABOVE HEALTH BAR */
+        .player-info-container {
+            position: absolute;
+            bottom: 65px;
+            left: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .player-username {
+            font-size: 14px;
+            font-weight: 900;
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5), 2px 2px 0 #000;
+            letter-spacing: 1px;
+            font-style: italic;
+        }
+        
         .ammo-display { position: absolute; bottom: 80px; left: 45px; color: white; font-size: 24px; text-shadow: 2px 2px black; font-style: italic; }
         .health-bar { position: absolute; bottom: 40px; left: 40px; width: 350px; height: 22px; background: rgba(0,0,0,0.6); border: 3px solid #000; transform: skewX(-15deg); overflow: hidden; border-radius: 2px; }
         .health-fill { width: 100%; height: 100%; background: #4efc03; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); transition: width 0.2s; }
         .weapon-slots { position: absolute; bottom: 40px; right: 40px; display: flex; gap: 12px; }
-        .slot { width: 70px; height: 70px; background: rgba(10,10,10,0.9); border: 2px solid #222; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; color: white; font-size: 0.7rem; text-align: center; padding: 5px; box-sizing: border-box;}
+        .slot { width: 70px; height: 70px; background: rgba(10,10,10,0.9); border: 2px solid #222; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; color: white; font-size: 0.7rem; text-align: center; padding: 5px; box-sizing: border-box; }
         .slot.active { border-color: #ff007f; background: rgba(255,0,127,0.15); transform: scale(1.1); box-shadow: 0 0 15px rgba(255,0,127,0.3); }
         .slot::after { content: attr(data-key); position: absolute; top: 2px; left: 6px; color: #ff007f; font-size: 11px; font-weight: 900; }
     </style>
@@ -376,6 +394,12 @@
             <div class="ch-bar ch-v ch-top"></div><div class="ch-bar ch-v ch-bottom"></div>
             <div class="ch-bar ch-h ch-left"></div><div class="ch-bar ch-h ch-right"></div>
         </div>
+        
+        <!-- Username Display Above Health Bar -->
+        <div class="player-info-container">
+            <div class="player-username" id="player-username">PLAYER</div>
+        </div>
+        
         <div class="ammo-display" id="ammo-text">30 / 30</div>
         <div class="health-bar"><div class="health-fill" id="hp-bar"></div></div>
         <div class="weapon-slots" id="hud-slots"></div>
@@ -388,6 +412,13 @@
     <script type="module">
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- GET USERNAME FROM URL PARAMETERS ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const playerUsername = urlParams.get('user') || 'PLAYER';
+        
+        // Display username on the UI
+        document.getElementById('player-username').textContent = playerUsername.toUpperCase();
 
         // --- GAME SETTINGS STATE ---
         const gameSettings = {
@@ -471,7 +502,6 @@
         }
 
         // --- NETWORK & MULTIPLAYER SETUP ---
-        const urlParams = new URLSearchParams(window.location.search);
         const gameMode = urlParams.get('mode') || 'vsai';
         const netRole = urlParams.get('role');
         const netRoom = urlParams.get('room');
@@ -485,22 +515,71 @@
         if (isMultiplayer) {
             document.getElementById('network-status').style.display = 'block';
             document.getElementById('loading-screen').style.display = 'flex';
-            peer = new Peer(isHost ? netRoom : undefined);
+            
+            // Enhanced PeerJS configuration for cross-network (different WiFi) connectivity
+            // Using public STUN servers for NAT traversal
+            const peerOptions = {
+                debug: 2,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { urls: 'stun:stun3.l.google.com:19302' },
+                        { urls: 'stun:stun4.l.google.com:19302' },
+                        { urls: 'stun:stun.stunprotocol.org:3478' },
+                        { urls: 'stun:stun.ideasip.com:3478' }
+                    ]
+                }
+            };
 
             if (isHost) {
-                document.getElementById('network-status').innerText = "WAITING FOR OPPONENT...";
-                document.getElementById('loading-msg').innerText = "HOSTING ROOM: " + netRoom;
+                // Host creates room with specific room ID
+                peer = new Peer(netRoom, peerOptions);
+                
+                peer.on('open', (id) => {
+                    console.log('Host peer opened with ID:', id);
+                    document.getElementById('network-status').innerText = "WAITING FOR OPPONENT...";
+                    document.getElementById('loading-msg').innerText = "HOSTING ROOM: " + netRoom;
+                });
+
                 peer.on('connection', (conn) => {
                     peerConn = conn;
                     setupNetwork();
                 });
+
+                peer.on('error', (err) => {
+                    console.error('PeerJS Host Error:', err);
+                    document.getElementById('network-status').innerText = "CONNECTION ERROR";
+                    document.getElementById('network-status').style.color = "#ff0000";
+                    document.getElementById('network-status').style.borderColor = "#ff0000";
+                });
+
             } else {
-                document.getElementById('network-status').innerText = "CONNECTING TO HOST...";
-                document.getElementById('loading-msg').innerText = "CONNECTING TO ROOM: " + netRoom;
-                peer.on('open', () => {
-                    peerConn = peer.connect(netRoom, { reliable: true });
+                // Client joins room
+                peer = new Peer(undefined, peerOptions);
+
+                peer.on('open', (id) => {
+                    console.log('Client peer opened with ID:', id);
+                    document.getElementById('network-status').innerText = "CONNECTING TO HOST...";
+                    document.getElementById('loading-msg').innerText = "CONNECTING TO ROOM: " + netRoom;
+                    
+                    // Connect to host
+                    peerConn = peer.connect(netRoom, { 
+                        reliable: true,
+                        serialization: 'json'
+                    });
                     setupNetwork();
                 });
+
+                peer.on('error', (err) => {
+                    console.error('PeerJS Client Error:', err);
+                    document.getElementById('network-status').innerText = "CONNECTION ERROR";
+                    document.getElementById('network-status').style.color = "#ff0000";
+                    document.getElementById('network-status').style.borderColor = "#ff0000";
+                });
+                
+                // Hide map selection for non-host
                 document.getElementById('map-header').innerText = "WAITING FOR HOST TO SELECT ARENA...";
                 document.getElementById('map-cards-container').style.display = 'none';
             }
@@ -510,9 +589,12 @@
             peerConn.on('open', () => {
                 document.getElementById('loading-screen').style.display = 'none';
                 const statusEl = document.getElementById('network-status');
-                statusEl.innerText = "NETWORK: SECURED";
+                statusEl.innerText = "NETWORK: CONNECTED";
                 statusEl.style.color = "#00ffcc";
                 statusEl.style.borderColor = "#00ffcc";
+                
+                // Send username to other peer
+                peerConn.send({ type: 'username', name: playerUsername });
             });
 
             peerConn.on('data', (data) => {
@@ -548,6 +630,20 @@
                         spawnParticles(networkPlayerObj.position, 50, 'spark', 0x00ff00);
                     }
                 }
+                // Handle username from other peer
+                if (data.type === 'username') {
+                    console.log('Received username:', data.name);
+                }
+            });
+            
+            peerConn.on('close', () => {
+                document.getElementById('network-status').innerText = "NETWORK: DISCONNECTED";
+                document.getElementById('network-status').style.color = "#ff0000";
+                document.getElementById('network-status').style.borderColor = "#ff0000";
+            });
+            
+            peerConn.on('error', (err) => {
+                console.error('Connection error:', err);
             });
         }
 
@@ -1599,9 +1695,9 @@
 
         async function shoot() {
             const name = selectedItems[activeWeaponIndex]; const config = WEAPON_CONFIG[name];
-            if(!canShoot || isReloading || !config || isGameOver) return;
+            if(!canShoot || isReloading || !config || isGameOver if (activeWeapon) return;
 
-            if (activeWeaponIndex === 2) { useTactical(name, config); return; }
+           Index === 2) { useTactical(name, config); return; }
 
             const targetObj = isMultiplayer ? networkPlayerObj : dummy;
 
