@@ -227,7 +227,7 @@
                     networkPlayerObj.rotation.y = data.rotY;
                 }
                 if (data.type === 'shoot') {
-                    spawnNetworkBullet(data.pos, data.dir, data.damage);
+                    spawnNetworkBullet(data.pos, data.dir, data.damage, data.perk);
                 }
                 if (data.type === 'hit') {
                     takePlayerDamage(data.damage);
@@ -277,47 +277,48 @@
 
         // --- CONFIG & STATE ---
         const WEAPON_CONFIG = {
-            "Volt-AR": { mag: 30, reload: 1500, rpm: 650, type: "auto", color: 0x333333, damage: 22 },
-            "Marksman-7": { mag: 12, reload: 2000, rpm: 300, type: "semi", color: 0x4a3728, damage: 55 },
-            "Cutter SMG": { mag: 40, reload: 1000, rpm: 950, type: "auto", color: 0x111111, damage: 14 },
-            "Burst-Pulse": { mag: 24, reload: 1800, rpm: 400, type: "burst", color: 0x2c3e50, damage: 20 },
-            "Slug-Shotty": { mag: 5, reload: 3000, rpm: 60, type: "semi", color: 0x1a1a1a, kick: 0.5, damage: 110 },
-            "Carbine-X": { mag: 25, reload: 2000, rpm: 550, type: "auto", color: 0x273c75, damage: 26 },
-            "LMG-Heavy": { mag: 100, reload: 4500, rpm: 500, type: "auto", color: 0x2f3640, damage: 28 },
-            "Standard 9mm": { mag: 15, reload: 1200, rpm: 450, type: "semi", color: 0x353b48, damage: 18 },
-            "Shorty": { mag: 2, reload: 2500, rpm: 100, type: "semi", color: 0x192a56, damage: 85 },
-            "Magnum .44": { mag: 6, reload: 2500, rpm: 120, type: "semi", color: 0x7f8c8d, damage: 65 },
-            "Auto-Pistol": { mag: 20, reload: 1200, rpm: 800, type: "auto", color: 0x2f3640, damage: 12 },
-            "Silenced USP": { mag: 12, reload: 1500, rpm: 450, type: "semi", color: 0x1e272e, damage: 20 },
-            "Laser-Pistol": { mag: Infinity, reload: 0, rpm: 600, type: "laser", color: 0x00d2d3, damage: 10 },
-            "Hand Cannon": { mag: 1, reload: 3500, rpm: 30, type: "semi", color: 0x485460, damage: 250 },
+            "Volt-AR": { mag: 30, reload: 1500, rpm: 650, type: "auto", color: 0x333333, damage: 22, weight: 1.0 },
+            "Marksman-7": { mag: 12, reload: 2000, rpm: 300, type: "semi", color: 0x4a3728, damage: 55, weight: 1.1 },
+            "Cutter SMG": { mag: 40, reload: 1000, rpm: 950, type: "auto", color: 0x111111, damage: 14, weight: 1.2 },
+            "Burst-Pulse": { mag: 24, reload: 1800, rpm: 400, type: "burst", color: 0x2c3e50, damage: 20, weight: 1.0 },
+            "Slug-Shotty": { mag: 5, reload: 3000, rpm: 60, type: "semi", color: 0x1a1a1a, kick: 0.5, damage: 110, weight: 0.9 },
+            "Carbine-X": { mag: 25, reload: 2000, rpm: 550, type: "auto", color: 0x273c75, damage: 26, weight: 1.0 },
+            "LMG-Heavy": { mag: 100, reload: 4500, rpm: 500, type: "auto", color: 0x2f3640, damage: 28, weight: 0.6 },
+            "Standard 9mm": { mag: 15, reload: 1200, rpm: 450, type: "semi", color: 0x353b48, damage: 18, weight: 1.3 },
+            "Shorty": { mag: 2, reload: 2500, rpm: 100, type: "semi", color: 0x192a56, damage: 85, weight: 1.1 },
+            "Magnum .44": { mag: 6, reload: 2500, rpm: 120, type: "semi", color: 0x7f8c8d, damage: 65, weight: 1.0 },
+            "Auto-Pistol": { mag: 20, reload: 1200, rpm: 800, type: "auto", color: 0x2f3640, damage: 12, weight: 1.3 },
+            "Silenced USP": { mag: 12, reload: 1500, rpm: 450, type: "semi", color: 0x1e272e, damage: 20, weight: 1.3 },
+            "Laser-Pistol": { mag: Infinity, reload: 0, rpm: 600, type: "laser", color: 0x00d2d3, damage: 10, weight: 1.3 },
+            "Hand Cannon": { mag: 1, reload: 3500, rpm: 30, type: "semi", color: 0x485460, damage: 250, weight: 0.9 },
             
-            "Molotov": { type: "throwable", effect: "fire", cooldown: 2000, color: 0xff4400, aoeDmg: 5, radius: 15 },
-            "Flare Gun": { type: "projectile", effect: "flare", cooldown: 1000, color: 0xff0000, aoeDmg: 2, radius: 20 },
-            "Flashbang": { type: "throwable", effect: "flash", cooldown: 2000, color: 0xdddddd },
-            "Smoke Screen": { type: "throwable", effect: "smoke", cooldown: 3000, color: 0x555555 },
-            "Shock Trap": { type: "throwable", effect: "shock", cooldown: 2000, color: 0x00ffff, aoeDmg: 10, radius: 12 },
-            "Stim-Shot": { type: "self", effect: "heal", cooldown: 5000, color: 0x00ff00 },
-            "Decoy Grenade": { type: "throwable", effect: "sound", cooldown: 2000, color: 0xffaa00 },
+            "Molotov": { type: "throwable", effect: "fire", cooldown: 2000, color: 0xff4400, aoeDmg: 5, radius: 15, weight: 1.3 },
+            "Flare Gun": { type: "projectile", effect: "flare", cooldown: 1000, color: 0xff0000, aoeDmg: 2, radius: 20, weight: 1.3 },
+            "Flashbang": { type: "throwable", effect: "flash", cooldown: 2000, color: 0xdddddd, weight: 1.3 },
+            "Smoke Screen": { type: "throwable", effect: "smoke", cooldown: 3000, color: 0x555555, weight: 1.3 },
+            "Shock Trap": { type: "throwable", effect: "shock", cooldown: 2000, color: 0x00ffff, aoeDmg: 10, radius: 12, weight: 1.3 },
+            "Stim-Shot": { type: "self", effect: "heal", cooldown: 5000, color: 0x00ff00, weight: 1.3 },
+            "Decoy Grenade": { type: "throwable", effect: "sound", cooldown: 2000, color: 0xffaa00, weight: 1.3 },
 
-            "Tactical Knife": { rpm: 150, type: "melee", color: 0x222222, damage: 65 },
-            "Karambit": { rpm: 100, type: "melee", color: 0x111111, damage: 85 },
-            "Butterfly Knife": { rpm: 150, type: "melee", color: 0x333333, damage: 70 },
-            "Stun Baton": { rpm: 600, type: "melee", color: 0x0984e3, damage: 35 },
-            "Brass Knuckles": { rpm: 120, type: "melee", color: 0xd63031, damage: 50 },
-            "Tomahawk": { rpm: 1000, type: "melee", color: 0x2d3436, damage: 95 },
-            "Crowbar": { rpm: 700, type: "melee", color: 0xfa8231, damage: 60 }
+            "Tactical Knife": { rpm: 150, type: "melee", color: 0x222222, damage: 65, weight: 1.4 },
+            "Karambit": { rpm: 100, type: "melee", color: 0x111111, damage: 85, weight: 1.4 },
+            "Butterfly Knife": { rpm: 150, type: "melee", color: 0x333333, damage: 70, weight: 1.4 },
+            "Stun Baton": { rpm: 600, type: "melee", color: 0x0984e3, damage: 35, weight: 1.3 },
+            "Brass Knuckles": { rpm: 120, type: "melee", color: 0xd63031, damage: 50, weight: 1.4 },
+            "Tomahawk": { rpm: 1000, type: "melee", color: 0x2d3436, damage: 95, weight: 1.3 },
+            "Crowbar": { rpm: 700, type: "melee", color: 0xfa8231, damage: 60, weight: 1.2 }
         };
 
         const LOADOUT_DATA = [
             { name: "PRIMARY", items: ["Volt-AR", "Marksman-7", "Cutter SMG", "Burst-Pulse", "Slug-Shotty", "Carbine-X", "LMG-Heavy"] },
             { name: "SECONDARY", items: ["Standard 9mm", "Shorty", "Magnum .44", "Auto-Pistol", "Silenced USP", "Laser-Pistol", "Hand Cannon"] },
             { name: "TACTICAL", items: ["Molotov", "Flare Gun", "Flashbang", "Smoke Screen", "Shock Trap", "Stim-Shot", "Decoy Grenade"] },
-            { name: "MELEE", items: ["Tactical Knife", "Karambit", "Butterfly Knife", "Stun Baton", "Brass Knuckles", "Tomahawk", "Crowbar"] }
+            { name: "MELEE", items: ["Tactical Knife", "Karambit", "Butterfly Knife", "Stun Baton", "Brass Knuckles", "Tomahawk", "Crowbar"] },
+            { name: "PERK", items: ["None", "Head-Hunter", "Rebound"] }
         ];
 
-        let selectedItems = [null, null, null, null];
-        let ammoState = [0, 0, 1, 0]; 
+        let selectedItems = [null, null, null, null, null];
+        let ammoState = [0, 0, 1, 0, 0]; 
         let isReloading = false;
         let isScoping = false; 
         let laserHeat = 0;
@@ -334,6 +335,7 @@
         let aiController = null;
         let isProne = false;
         let isWallRunning = false;
+        let isSprintingState = false;
         let jumpPads = [];
 
         let scene, camera, renderer, controls, weaponGroup;
@@ -342,7 +344,11 @@
         let activeWeaponIndex = 0;
         let canShoot = true;
         let lastDashTime = 0; 
-        
+        let isShooting = false; 
+
+        let targetSway = new THREE.Vector2(0,0);
+        let currentSway = new THREE.Vector2(0,0);
+
         let bullets = [];
         let enemyBullets = []; 
         let particles = [];
@@ -353,6 +359,11 @@
         let dummy;
 
         const bulletRaycaster = new THREE.Raycaster();
+
+        // Global Stun Function
+        function stunEnemies(duration) {
+            if (aiController) aiController.stun = duration;
+        }
 
         // --- PROCEDURAL TEXTURES ---
         function generateProceduralTexture(type, color1, color2) {
@@ -430,23 +441,28 @@
         });
 
         const menuGrid = document.getElementById('menu-grid');
-        LOADOUT_DATA.forEach((cat, catIdx) => {
-            const col = document.createElement('div');
-            col.className = 'category-column';
-            col.innerHTML = `<div class="category-title">${cat.name}</div>`;
-            const list = document.createElement('div'); list.className = 'item-list';
-            cat.items.forEach((item) => {
-                const btn = document.createElement('div'); btn.className = 'item-btn'; btn.innerHTML = item; 
-                btn.onclick = () => {
-                    col.querySelectorAll('.item-btn').forEach(b => b.classList.remove('selected'));
-                    btn.classList.add('selected');
-                    selectedItems[catIdx] = item;
-                    checkDeploy();
-                };
-                list.appendChild(btn);
+        function buildMenu() {
+            menuGrid.innerHTML = "";
+            LOADOUT_DATA.forEach((cat, catIdx) => {
+                const col = document.createElement('div');
+                col.className = 'category-column';
+                col.innerHTML = `<div class="category-title">${cat.name}</div>`;
+                const list = document.createElement('div'); list.className = 'item-list';
+                cat.items.forEach((item) => {
+                    const btn = document.createElement('div'); btn.className = 'item-btn'; btn.innerHTML = item; 
+                    if(selectedItems[catIdx] === item) btn.classList.add('selected');
+                    btn.onclick = () => {
+                        col.querySelectorAll('.item-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        selectedItems[catIdx] = item;
+                        checkDeploy();
+                    };
+                    list.appendChild(btn);
+                });
+                col.appendChild(list); menuGrid.appendChild(col);
             });
-            col.appendChild(list); menuGrid.appendChild(col);
-        });
+        }
+        buildMenu();
 
         function checkDeploy() { document.getElementById('deploy-btn').disabled = selectedItems.includes(null); }
 
@@ -454,11 +470,37 @@
             document.getElementById('selection-screen').style.display = 'none';
             document.getElementById('ui-layer').style.display = 'block';
             selectedItems.forEach((name, i) => {
-                const config = WEAPON_CONFIG[name];
-                ammoState[i] = config ? (i === 2 ? 1 : config.mag) : 1;
+                if (i < 4) { // Ignore perk slot for ammo configuration
+                    const config = WEAPON_CONFIG[name];
+                    ammoState[i] = config ? (i === 2 ? 1 : config.mag) : 1;
+                }
             });
             initGame();
         };
+
+        // --- SECRET CODE LOGIC ---
+        let secretBuffer = "";
+        window.addEventListener('keydown', (e) => {
+            if(e.key && e.key.length === 1) secretBuffer += e.key;
+            if(secretBuffer.length > 10) secretBuffer = secretBuffer.slice(-10);
+            if(secretBuffer.includes("ragbo") && !WEAPON_CONFIG["OBS"]) {
+                secretBuffer = "";
+                WEAPON_CONFIG["OBS"] = { mag: Infinity, reload: 0, rpm: 30, type: "obs", color: 0x8b4513, damage: 1500, weight: 1.0 };
+                alert("OBS (Orbital Strike Cannon) UNLOCKED! Added to Melee Weapons (Slot 4).");
+                LOADOUT_DATA[3].items.push("OBS"); // Slot 4 is the Melee category (Index 3)
+                buildMenu();
+                
+                // If in game, auto equip it into slot 4
+                if(document.getElementById('ui-layer').style.display === 'block') {
+                    selectedItems[3] = "OBS";
+                    activeWeaponIndex = 3;
+                    updateWeaponModel();
+                    updateAmmoUI();
+                    const slot = document.getElementById('hud-slot-3');
+                    if(slot) { slot.innerText = "OBS"; slot.classList.add('active'); }
+                }
+            }
+        });
 
         function resetRound() {
             if (isGameOver) return; 
@@ -486,6 +528,7 @@
             
             if (aiController) {
                 aiController.health = aiController.maxHealth;
+                aiController.stun = 0;
                 aiController.mesh.position.copy(spawnE); 
                 aiController.pickNewTarget();
                 aiController.randomizeLoadout();
@@ -544,7 +587,6 @@
                     addObj(new THREE.CylinderGeometry(2, 2, 25, 16), new THREE.MeshStandardMaterial({color: 0xFF0000}), [40, 12.5, i * 15]);
                 }
 
-                // Playground Jump Pads
                 addJumpPad([25, 0.25, 25]); 
                 addJumpPad([-25, 0.25, -25]);
             } 
@@ -565,7 +607,6 @@
 
                 addObj(new THREE.BoxGeometry(80, 1, 5), new THREE.MeshStandardMaterial({color: 0x888888}), [0, -10, 45]);
 
-                // SkyPort Jump Pads
                 addJumpPad([0, 0.25, 30]);
                 addJumpPad([-60, 0.25, -15]);
             }
@@ -575,47 +616,43 @@
                 const woodTex = generateProceduralTexture('stripes', '#8B4513', '#A0522D'); woodTex.repeat.set(10, 10);
                 const metalTex = generateProceduralTexture('grid', '#555555', '#333333'); metalTex.repeat.set(5, 5);
                 
-                // P1 L-Shape Spawn (Massive)
                 addObj(new THREE.BoxGeometry(90, 4, 60), new THREE.MeshStandardMaterial({map: woodTex}), [45, 8, 120]);
                 addObj(new THREE.BoxGeometry(60, 4, 120), new THREE.MeshStandardMaterial({map: woodTex}), [120, 8, 30]);
-                
-                // P2 L-Shape Spawn (Mirrored)
                 addObj(new THREE.BoxGeometry(90, 4, 60), new THREE.MeshStandardMaterial({map: woodTex}), [-45, 8, -120]);
                 addObj(new THREE.BoxGeometry(60, 4, 120), new THREE.MeshStandardMaterial({map: woodTex}), [-120, 8, -30]);
 
-                // Center piece
                 addObj(new THREE.BoxGeometry(60, 4, 60), new THREE.MeshStandardMaterial({map: metalTex}), [0, 8, 0]);
 
-                // Planks connecting L shapes to Center
                 addObj(new THREE.BoxGeometry(18, 2, 60), new THREE.MeshStandardMaterial({map: woodTex}), [0, 8, 60]);
                 addObj(new THREE.BoxGeometry(18, 2, 60), new THREE.MeshStandardMaterial({map: woodTex}), [0, 8, -60]);
                 
-                // More gaps and bridging platforms
                 addObj(new THREE.BoxGeometry(40, 4, 40), new THREE.MeshStandardMaterial({map: woodTex}), [120, 8, -120]);
                 addObj(new THREE.BoxGeometry(40, 4, 40), new THREE.MeshStandardMaterial({map: woodTex}), [-120, 8, 120]);
                 
                 addObj(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({map: metalTex}), [60, 8, -60]);
                 addObj(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({map: metalTex}), [-60, 8, 60]);
 
-                // Crane & Dangling Crate (Skyscraper Scale)
                 addObj(new THREE.BoxGeometry(24, 240, 24), new THREE.MeshStandardMaterial({color: 0xdddd00}), [-120, 120, 0]); // Tower
                 addObj(new THREE.BoxGeometry(220, 12, 12), new THREE.MeshStandardMaterial({color: 0xdddd00}), [-20, 234, 0]); // Arm
                 addObj(new THREE.CylinderGeometry(0.5, 0.5, 150), new THREE.MeshStandardMaterial({color: 0x111111}), [0, 159, 0]); // Cable
                 
-                // Massive Red dangling crates
-                addObj(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshStandardMaterial({color: 0xaa0000}), [0, 69, 0]);
-                addObj(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshStandardMaterial({color: 0x880000}), [0, 20, 0]); // Lower crate for cover
+                // Construct Crane Ladder
+                const ladderMat = new THREE.MeshStandardMaterial({color: 0x222222});
+                for(let i=0; i<240; i+=4) {
+                    addObj(new THREE.BoxGeometry(4, 0.5, 0.5), ladderMat, [-120, i, 12.5]);
+                }
 
-                // Explosive Red Barrels
+                addObj(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshStandardMaterial({color: 0xaa0000}), [0, 69, 0]);
+                addObj(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshStandardMaterial({color: 0x880000}), [0, 20, 0]); 
+
                 const barrelMat = new THREE.MeshStandardMaterial({color: 0xff0000});
                 const b1 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [120, 13, 30]); b1.userData = {isBarrel: true};
                 const b2 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [-120, 13, -30]); b2.userData = {isBarrel: true};
-                const b3 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [0, 33, 0]); b3.userData = {isBarrel: true}; // On the lower crate
+                const b3 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [0, 33, 0]); b3.userData = {isBarrel: true};
                 const b4 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [60, 11, -60]); b4.userData = {isBarrel: true};
                 const b5 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [-60, 11, 60]); b5.userData = {isBarrel: true};
                 const b6 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [0, 13, 0]); b6.userData = {isBarrel: true};
 
-                // Construction Jump Pads
                 addJumpPad([30, 10.25, 30]);
                 addJumpPad([-30, 10.25, -30]);
                 addJumpPad([0, 10.25, -45]);
@@ -633,7 +670,6 @@
                 addObj(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshStandardMaterial({color: 0xcccc00}), [-60, 5, -30]);
                 addObj(new THREE.BoxGeometry(16, 10, 16), new THREE.MeshStandardMaterial({color: 0x444444}), [-60, 6, -30]); 
 
-                // Container Jump Pads
                 addJumpPad([0, 0.25, 20]);
                 addJumpPad([0, 0.25, -20]);
             }
@@ -658,7 +694,8 @@
             constructor(dummyMesh) {
                 this.mesh = dummyMesh; this.health = 300; this.maxHealth = 300; this.state = "pursue"; 
                 this.dashCooldown = 0; this.shootCooldown = 0; this.grenadeCooldown = 500;
-                this.moveSpeed = 0.15; // slightly faster base speed
+                this.stun = 0;
+                this.moveSpeed = 0.15; 
                 this.targetPos = new THREE.Vector3(); this.pickNewTarget();
                 
                 this.randomizeLoadout();
@@ -674,7 +711,8 @@
                     primary: LOADOUT_DATA[0].items[Math.floor(Math.random() * LOADOUT_DATA[0].items.length)],
                     secondary: LOADOUT_DATA[1].items[Math.floor(Math.random() * LOADOUT_DATA[1].items.length)],
                     tactical: LOADOUT_DATA[2].items[Math.floor(Math.random() * LOADOUT_DATA[2].items.length)],
-                    melee: LOADOUT_DATA[3].items[Math.floor(Math.random() * LOADOUT_DATA[3].items.length)]
+                    melee: LOADOUT_DATA[3].items[Math.floor(Math.random() * LOADOUT_DATA[3].items.length)],
+                    perk: LOADOUT_DATA[4].items[Math.floor(Math.random() * LOADOUT_DATA[4].items.length)]
                 };
                 this.activeWeaponName = this.loadout.primary;
             }
@@ -696,18 +734,22 @@
             }
 
             update(playerPos, cameraObj) {
+                if (this.stun > 0) {
+                    this.stun--;
+                    if (this.stun % 5 === 0) spawnParticles(this.mesh.position.clone().add(new THREE.Vector3(0,2,0)), 10, 'spark', 0xffff00);
+                    return; // Prevent actions and movement when stunned
+                }
+
                 if(this.dashCooldown > 0) this.dashCooldown--;
                 if(this.shootCooldown > 0) this.shootCooldown--;
                 if(this.grenadeCooldown > 0) this.grenadeCooldown--;
 
-                // AI Void Death Check (Fallback if physics fails)
                 if (this.mesh.position.y < -50) {
                     this.takeDamage(this.maxHealth + 100);
                 }
 
                 const distToPlayer = this.mesh.position.distanceTo(playerPos);
                 
-                // Intelligently swap weapons based on distance
                 if (distToPlayer < 10) this.activeWeaponName = this.loadout.melee;
                 else if (distToPlayer < 40) this.activeWeaponName = this.loadout.secondary;
                 else this.activeWeaponName = this.loadout.primary;
@@ -759,19 +801,16 @@
                     moveDir = this.targetPos.clone().sub(this.mesh.position).normalize().multiplyScalar(this.moveSpeed * 1.5);
                 }
 
-                // AI PREVENT FALLING OFF EDGE (Look-ahead raycast)
                 const ahead = this.mesh.position.clone().add(moveDir.clone().normalize().multiplyScalar(4));
                 bulletRaycaster.set(ahead.add(new THREE.Vector3(0,2,0)), new THREE.Vector3(0,-1,0));
                 let dropHits = bulletRaycaster.intersectObjects(mapColliders);
                 if (dropHits.length === 0 || dropHits[0].distance > 20) {
-                    // Impending doom detected. Stop moving forward and back up slightly.
                     moveDir.set(0, 0, 0); 
                     this.mesh.position.add(this.mesh.position.clone().sub(this.targetPos).normalize().multiplyScalar(this.moveSpeed * 2)); 
                 } else {
                     this.mesh.position.add(moveDir);
                 }
 
-                // AI SMART COLLISION AND PATHING
                 const aiOrigin = this.mesh.position.clone().add(new THREE.Vector3(0, 2, 0));
                 
                 bulletRaycaster.set(aiOrigin, new THREE.Vector3(0, -1, 0));
@@ -785,7 +824,6 @@
                     this.mesh.position.y = groundY; 
                 }
 
-                // AI raycast obstacle avoidance steering
                 const dirs = [
                     new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0), 
                     new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1),
@@ -800,7 +838,6 @@
                             this.mesh.position.x += wHits[0].face.normal.x * overlap;
                             this.mesh.position.z += wHits[0].face.normal.z * overlap;
                             
-                            // Try hopping if stuck against a low obstacle
                             if(wHits[0].distance < 1.0 && this.mesh.position.y - groundY < 1) {
                                 this.mesh.position.y += 0.5;
                             }
@@ -811,7 +848,7 @@
 
             shootAtPlayer(playerPos, config) {
                 if (config.type === "melee") {
-                    weaponGroup.children[0].rotation.x = -1.2; // purely visual glitch if AI held it, but simulates swing
+                    weaponGroup.children[0].rotation.x = -1.2; 
                     if (this.mesh.position.distanceTo(playerPos) < 6) {
                         takePlayerDamage(config.damage);
                     }
@@ -827,7 +864,7 @@
                 
                 b.position.copy(this.mesh.position).add(new THREE.Vector3(0,2,0)).add(dir.multiplyScalar(2));
                 b.lookAt(b.position.clone().add(dir));
-                b.userData = { velocity: dir.multiplyScalar(4), damage: config.damage || 15 };
+                b.userData = { velocity: dir.multiplyScalar(4), damage: config.damage || 15, perk: this.loadout.perk, hasRebounded: false };
                 scene.add(b); enemyBullets.push(b);
             }
 
@@ -849,7 +886,6 @@
                 const dir = playerPos.clone().sub(this.mesh.position).normalize();
                 mesh.position.copy(this.mesh.position).add(new THREE.Vector3(0,3,0));
                 
-                // Lead the throw a bit based on distance
                 mesh.userData = { vel: dir.multiplyScalar(20).add(new THREE.Vector3(0, 8, 0)), type: "grenade", name: tactName, config: config, grounded: false };
                 scene.add(mesh); throwables.push(mesh);
             }
@@ -898,8 +934,10 @@
 
             const hudSlots = document.getElementById('hud-slots');
             selectedItems.forEach((item, i) => {
-                const slot = document.createElement('div'); slot.className = `slot ${i === 0 ? 'active' : ''}`;
-                slot.id = `hud-slot-${i}`; slot.setAttribute('data-key', i + 1); slot.innerText = item; hudSlots.appendChild(slot);
+                if (i < 4) { 
+                    const slot = document.createElement('div'); slot.className = `slot ${i === 0 ? 'active' : ''}`;
+                    slot.id = `hud-slot-${i}`; slot.setAttribute('data-key', i + 1); slot.innerText = item; hudSlots.appendChild(slot);
+                }
             });
 
             weaponGroup = new THREE.Group(); camera.add(weaponGroup); scene.add(controls.getObject());
@@ -942,18 +980,18 @@
                 if(e.code === 'KeyW') moveFwd = true; if(e.code === 'KeyS') moveBwd = true;
                 if(e.code === 'KeyA') moveL = true; if(e.code === 'KeyD') moveR = true;
                 
-                // Toggle Prone
                 if(e.code === 'KeyZ') isProne = !isProne;
 
-                // Backward Dash
-                if(e.code === 'KeyS' && e.shiftKey && performance.now() - lastDashTime > 800) {
+                if(e.code === 'ShiftLeft') isSprintingState = true;
+
+                if(e.code === 'KeyS' && isSprintingState && performance.now() - lastDashTime > 800) {
                     const backward = new THREE.Vector3(0,0,1).applyQuaternion(camera.quaternion);
                     backward.y = 0; backward.normalize();
                     velocity.add(backward.multiplyScalar(150));
                     lastDashTime = performance.now();
                 }
 
-                if((e.code === 'ControlLeft' || e.code === 'ShiftLeft') && !isSliding) { 
+                if(e.code === 'ControlLeft' && !isSliding) { 
                     isSliding = true; 
                     if(isGrounded && performance.now() - lastDashTime > 800) {
                         const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
@@ -963,13 +1001,12 @@
                     }
                 }
                 
-                // Jump / Slide Jump
                 if(e.code === 'Space' && isGrounded) {
-                    velocity.y += isSliding ? 55 : 35; // Extra vertical boost for slide jump
+                    velocity.y += isSliding ? 55 : 35; 
                     if(isSliding) {
                         const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
                         forward.y = 0; forward.normalize();
-                        velocity.add(forward.multiplyScalar(80)); // Huge forward push
+                        velocity.add(forward.multiplyScalar(80)); 
                     }
                 }
 
@@ -979,14 +1016,51 @@
             window.onkeyup = (e) => {
                 if(e.code === 'KeyW') moveFwd = false; if(e.code === 'KeyS') moveBwd = false;
                 if(e.code === 'KeyA') moveL = false; if(e.code === 'KeyD') moveR = false;
-                if(e.code === 'ControlLeft' || e.code === 'ShiftLeft') isSliding = false;
+                if(e.code === 'ShiftLeft') isSprintingState = false;
+                if(e.code === 'ControlLeft') isSliding = false;
             };
             window.onmousedown = (e) => { 
                 if(!controls.isLocked) return;
-                if(e.button === 0) shoot(); 
-                if(e.button === 2 && (activeWeaponIndex === 0 || activeWeaponIndex === 1)) isScoping = true;
+
+                if(e.button === 0) {
+                    isShooting = true;
+                    shoot(); 
+                }
+                
+                if(e.button === 2) {
+                    if (selectedItems[activeWeaponIndex] === "OBS") {
+                        // OBS Secondary Attack - Massive spawn where you look
+                        stunEnemies(300); // Stun AI for 5 seconds
+                        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+                        
+                        bulletRaycaster.set(camera.position, dir);
+                        let hits = bulletRaycaster.intersectObjects(mapColliders);
+                        let center = hits.length > 0 ? hits[0].point : camera.position.clone().add(dir.multiplyScalar(100));
+
+                        for(let i=0; i<100; i++) { // Massive TNT Storm
+                            let angle = (i / 100) * Math.PI * 2;
+                            let radius = Math.random() * 40;
+                            let offset = new THREE.Vector3(Math.cos(angle)*radius, 10 + Math.random()*30, Math.sin(angle)*radius);
+                            spawnTNT(center.clone().add(offset), true);
+                        }
+                    } else if(activeWeaponIndex === 0 || activeWeaponIndex === 1) {
+                        isScoping = true;
+                    }
+                }
             };
-            window.onmouseup = (e) => { if(e.button === 2) isScoping = false; };
+            window.onmouseup = (e) => { 
+                if(e.button === 0) isShooting = false; 
+                if(e.button === 2) isScoping = false; 
+            };
+
+            // WEAPON SWAY INPUT
+            window.addEventListener('mousemove', (e) => {
+                if(!controls.isLocked) return;
+                targetSway.x -= e.movementX * 0.001;
+                targetSway.y -= e.movementY * 0.001;
+                targetSway.x = Math.max(-0.1, Math.min(0.1, targetSway.x));
+                targetSway.y = Math.max(-0.1, Math.min(0.1, targetSway.y));
+            });
         }
 
         function updateAmmoUI() {
@@ -997,6 +1071,8 @@
                 ammoText.innerText = canShoot ? "READY" : "COOLDOWN"; ammoText.style.color = canShoot ? "#00ff00" : "#ff0000";
             } else if (config.type === "laser") {
                 ammoText.innerText = `HEAT: ${Math.floor(laserHeat)}%`; ammoText.style.color = laserHeat > 80 ? "#ff0000" : "#00d2d3";
+            } else if (config.type === "obs") {
+                ammoText.innerText = "OBS READY"; ammoText.style.color = "#ffaa00";
             } else if (config.type === "melee") { ammoText.innerText = "READY"; } else {
                 ammoText.innerText = isReloading ? "RELOADING..." : `${ammoState[activeWeaponIndex]} / ${config.mag}`; ammoText.style.color = "white";
             }
@@ -1004,9 +1080,9 @@
 
         function reload() {
             const config = WEAPON_CONFIG[selectedItems[activeWeaponIndex]];
-            if (!config || activeWeaponIndex === 2 || config.type === "melee" || isReloading || ammoState[activeWeaponIndex] === config.mag) return;
-            isReloading = true; updateAmmoUI(); weaponGroup.rotation.x = 0.5;
-            setTimeout(() => { ammoState[activeWeaponIndex] = config.mag; isReloading = false; weaponGroup.rotation.x = 0; updateAmmoUI(); }, config.reload);
+            if (!config || activeWeaponIndex === 2 || config.type === "melee" || config.type === "obs" || isReloading || ammoState[activeWeaponIndex] === config.mag) return;
+            isReloading = true; updateAmmoUI(); 
+            setTimeout(() => { ammoState[activeWeaponIndex] = config.mag; isReloading = false; updateAmmoUI(); }, config.reload);
         }
 
         function updateWeaponModel() {
@@ -1014,14 +1090,26 @@
             document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
             const hudSlot = document.getElementById(`hud-slot-${activeWeaponIndex}`); if(hudSlot) hudSlot.classList.add('active');
 
-            const config = WEAPON_CONFIG[selectedItems[activeWeaponIndex]] || { color: 0xffffff };
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 1.4), new THREE.MeshStandardMaterial({color: config.color, flatShading: true}));
-            const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.8), new THREE.MeshStandardMaterial({color: 0x111111, flatShading: true})); barrel.position.z = -0.8;
-            const mag = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.25), new THREE.MeshStandardMaterial({color: 0x000000, flatShading: true})); mag.position.set(0, -0.3, -0.2);
-            const weaponInner = new THREE.Group(); weaponInner.add(body, barrel, mag);
-            
-            if(config.type === "melee") { mag.visible = false; barrel.scale.set(0.5, 3, 0.1); barrel.position.set(0, 0, -0.8); }
-            if(activeWeaponIndex === 2) { barrel.visible = false; body.scale.set(1, 1, 0.5); }
+            const itemName = selectedItems[activeWeaponIndex];
+            const config = WEAPON_CONFIG[itemName] || { color: 0xffffff };
+            const weaponInner = new THREE.Group();
+
+            if (itemName === "OBS") {
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3), new THREE.MeshStandardMaterial({color: 0x8b4513}));
+                pole.rotation.x = Math.PI / 2;
+                pole.position.set(0, 0, -1.5);
+                const string = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.5), new THREE.MeshStandardMaterial({color: 0xffffff}));
+                string.position.set(0, -0.75, -3);
+                weaponInner.add(pole, string);
+            } else {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 1.4), new THREE.MeshStandardMaterial({color: config.color, flatShading: true}));
+                const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.8), new THREE.MeshStandardMaterial({color: 0x111111, flatShading: true})); barrel.position.z = -0.8;
+                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.25), new THREE.MeshStandardMaterial({color: 0x000000, flatShading: true})); mag.position.set(0, -0.3, -0.2);
+                weaponInner.add(body, barrel, mag);
+                
+                if(config.type === "melee") { mag.visible = false; barrel.scale.set(0.5, 3, 0.1); barrel.position.set(0, 0, -0.8); }
+                if(activeWeaponIndex === 2) { barrel.visible = false; body.scale.set(1, 1, 0.5); }
+            }
 
             weaponInner.position.set(0.8, -0.7, -1.2); weaponGroup.add(weaponInner);
         }
@@ -1029,9 +1117,9 @@
         class Particle {
             constructor(pos, type, color) {
                 this.pos = pos.clone(); this.type = type; this.life = 1.0;
-                if (type === 'fire') { this.vel = new THREE.Vector3((Math.random()-0.5)*4, Math.random()*8, (Math.random()-0.5)*4); this.decay = 0.01 + Math.random()*0.02; this.size = 2 + Math.random(); } 
-                else if (type === 'smoke') { this.vel = new THREE.Vector3((Math.random()-0.5)*5, Math.random()*2, (Math.random()-0.5)*5); this.decay = 0.005; this.size = 5 + Math.random()*5; } 
-                else if (type === 'spark') { this.vel = new THREE.Vector3((Math.random()-0.5)*20, (Math.random()-0.5)*20, (Math.random()-0.5)*20); this.decay = 0.05; this.size = 0.5; } 
+                if (type === 'fire') { this.vel = new THREE.Vector3((Math.random()-0.5)*15, Math.random()*25, (Math.random()-0.5)*15); this.decay = 0.01 + Math.random()*0.02; this.size = 5 + Math.random()*3; } 
+                else if (type === 'smoke') { this.vel = new THREE.Vector3((Math.random()-0.5)*10, Math.random()*15, (Math.random()-0.5)*10); this.decay = 0.005; this.size = 10 + Math.random()*15; } 
+                else if (type === 'spark') { this.vel = new THREE.Vector3((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*40); this.decay = 0.05; this.size = 1.0; } 
                 else if (type === 'flash') { this.vel = new THREE.Vector3(0,0,0); this.decay = 0.1; this.size = 20; } 
                 else if (type === 'flare_core') { this.vel = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*15, (Math.random()-0.5)*2); this.decay = 0.02; this.size = 4; }
 
@@ -1041,7 +1129,7 @@
             update() {
                 this.life -= this.decay; this.pos.addVectors(this.pos, this.vel.clone().multiplyScalar(0.016)); this.mesh.position.copy(this.pos);
                 if (this.type === 'fire' || this.type === 'flare_core') { this.mesh.scale.set(this.size * this.life, this.size * this.life, 1); this.mesh.material.opacity = this.life; } 
-                else if (this.type === 'smoke') { this.mesh.scale.multiplyScalar(1.01); this.mesh.material.opacity = this.life * 0.5; } 
+                else if (this.type === 'smoke') { this.mesh.scale.multiplyScalar(1.02); this.mesh.material.opacity = this.life * 0.5; } 
                 else { this.mesh.material.opacity = this.life; }
             }
         }
@@ -1055,6 +1143,23 @@
             if (activeWeaponIndex === 2) { useTactical(name, config); return; }
 
             const targetObj = isMultiplayer ? networkPlayerObj : dummy;
+
+            if (config.type === "obs") {
+                canShoot = false;
+                stunEnemies(300); // Stun AI for 5 seconds
+                const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+                
+                bulletRaycaster.set(camera.position, dir);
+                let hits = bulletRaycaster.intersectObjects(mapColliders);
+                let center = hits.length > 0 ? hits[0].point : camera.position.clone().add(dir.multiplyScalar(100));
+
+                for(let i=0; i<50; i++) { // Increased Payload
+                    spawnTNT(center.clone().add(new THREE.Vector3((Math.random()-0.5)*30, Math.random()*20 + 10, (Math.random()-0.5)*30)), false);
+                }
+                if(weaponGroup.children[0]) weaponGroup.children[0].rotation.x = -0.5;
+                setTimeout(() => { if(weaponGroup.children[0]) weaponGroup.children[0].rotation.x = 0; canShoot = true; }, 1000);
+                return;
+            }
 
             if (config.type === "melee") {
                 canShoot = false; weaponGroup.children[0].rotation.x = -1.2;
@@ -1108,6 +1213,38 @@
             }
         }
 
+        function spawnTNT(pos, explodeOnImpact) {
+            const tntMat = new THREE.MeshStandardMaterial({color: 0xff3333});
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), tntMat);
+            mesh.position.copy(pos);
+            mesh.userData = { 
+                vel: new THREE.Vector3(0, -10, 0), 
+                type: "tnt", 
+                grounded: false,
+                explodeOnImpact: explodeOnImpact,
+                life: 60 
+            };
+            scene.add(mesh);
+            throwables.push(mesh);
+        }
+
+        function detonateTNT(t) {
+            const pos = t.position.clone();
+            scene.remove(t);
+            // HUGE VFX
+            spawnParticles(pos, 300, 'fire', 0xffaa00);
+            spawnParticles(pos, 200, 'smoke', 0x555555);
+            spawnParticles(pos, 200, 'spark', 0xffffff);
+            const light = new THREE.PointLight(0xffaa00, 100, 800); light.position.copy(pos); scene.add(light);
+            
+            // HUGE DAMAGE AND AOE RADIUS
+            activeAOEs.push({ pos, type: 'fire', color: 0xffaa00, life: 20, light: light, damage: 1500, radius: 80 });
+
+            // Trigger a strong camera shake
+            currentSway.x += (Math.random() - 0.5) * 0.8;
+            currentSway.y += (Math.random() - 0.5) * 0.8;
+        }
+
         function detonate(obj) {
             const name = obj.userData.name; const config = obj.userData.config || {aoeDmg: 15, radius: 15}; const pos = obj.position.clone();
             if (name === "Molotov" || name === "Enemy-Fire") {
@@ -1150,7 +1287,7 @@
             const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.2), new THREE.MeshBasicMaterial({color: 0xffff00}));
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             b.position.copy(camera.position).add(dir.multiplyScalar(1)); b.lookAt(camera.position.clone().add(dir).add(dir));
-            b.userData = { velocity: dir.clone().multiplyScalar(5), damage: dmg || 10 }; 
+            b.userData = { velocity: dir.clone().multiplyScalar(5), damage: dmg || 10, perk: selectedItems[4], hasRebounded: false }; 
             scene.add(b); bullets.push(b);
 
             if (isMultiplayer && peerConn && peerConn.open) {
@@ -1158,18 +1295,19 @@
                     type: 'shoot',
                     pos: camera.position,
                     dir: dir,
-                    damage: dmg
+                    damage: dmg,
+                    perk: selectedItems[4]
                 });
             }
         }
 
-        function spawnNetworkBullet(pos, dirVec, dmg) {
+        function spawnNetworkBullet(pos, dirVec, dmg, perk) {
             const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.2), new THREE.MeshBasicMaterial({color: 0xff0000}));
             const p = new THREE.Vector3(pos.x, pos.y, pos.z);
             const d = new THREE.Vector3(dirVec.x, dirVec.y, dirVec.z);
             b.position.copy(p).add(d.multiplyScalar(1));
             b.lookAt(p.clone().add(d).add(d));
-            b.userData = { velocity: d.clone().multiplyScalar(5), damage: dmg || 10 }; 
+            b.userData = { velocity: d.clone().multiplyScalar(5), damage: dmg || 10, perk: perk, hasRebounded: false }; 
             scene.add(b); enemyBullets.push(b);
         }
 
@@ -1195,17 +1333,35 @@
             requestAnimationFrame(animate);
             if (isGameOver) return; 
 
+            if (isShooting && canShoot && !isReloading) {
+                const config = WEAPON_CONFIG[selectedItems[activeWeaponIndex]];
+                if (config && (config.type === "auto" || config.type === "laser")) {
+                    shoot();
+                }
+            }
+
             const time = performance.now(); const delta = 0.016;
             frameCount++;
 
             if (aiController) aiController.update(controls.getObject().position, camera);
 
+            // UPDATE WEAPON SWAY
+            targetSway.lerp(new THREE.Vector2(0,0), 0.05);
+            currentSway.lerp(targetSway, 0.1);
+            if (weaponGroup.children.length > 0) {
+                weaponGroup.rotation.y = currentSway.x;
+                weaponGroup.rotation.x = isReloading ? 0.5 : currentSway.y;
+            }
+
             if (controls.isLocked) {
                 velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 12.0 * delta; 
                 direction.z = Number(moveFwd) - Number(moveBwd); direction.x = Number(moveR) - Number(moveL); direction.normalize();
 
-                // PRONE, WALL RUN, AND SPRINT SPEED LOGIC
-                let speed = isProne ? 150 : ((isSliding && isGrounded) ? 900 : (isWallRunning ? 700 : 500)); 
+                // WEIGHT SYSTEM & SPRINT LOGIC
+                let baseSpeed = isProne ? 150 : ((isSliding && isGrounded) ? 900 : (isWallRunning ? 700 : (isSprintingState && moveFwd ? 800 : 500))); 
+                let weightMult = WEAPON_CONFIG[selectedItems[activeWeaponIndex]]?.weight || 1.0;
+                let speed = baseSpeed * weightMult;
+
                 if (moveFwd || moveBwd) velocity.z -= direction.z * speed * delta;
                 if (moveL || moveR) velocity.x -= direction.x * speed * delta;
 
@@ -1213,13 +1369,22 @@
                 controls.moveForward(-velocity.z * delta); 
                 controls.getObject().position.y += (velocity.y * delta);
 
-                // Check for Void Death
                 if (controls.getObject().position.y < -50) {
                     takePlayerDamage(maxHealth + 100);
                     velocity.y = 0;
                     
                     let respawnPos = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : new THREE.Vector3(0, 10, 40);
                     controls.getObject().position.copy(respawnPos);
+                }
+
+                // CRANE LADDER LOGIC
+                if (selectedMap === "Construction") {
+                    let dx = controls.getObject().position.x - (-120);
+                    let dz = controls.getObject().position.z - 12.5;
+                    if (dx*dx + dz*dz < 20 && moveFwd) {
+                        velocity.y = 40; 
+                        isGrounded = true; 
+                    }
                 }
 
                 // --- WALL RUNNING ---
@@ -1234,7 +1399,7 @@
                     
                     if ((leftHit.length > 0 && leftHit[0].distance < 2.0) || (rightHit.length > 0 && rightHit[0].distance < 2.0)) {
                         isWallRunning = true;
-                        velocity.y = Math.max(-10, velocity.y); // Suspend heavy falling
+                        velocity.y = Math.max(-10, velocity.y);
                     }
                 }
 
@@ -1251,8 +1416,8 @@
                     let headHit = bulletRaycaster.intersectObjects(mapColliders);
                     
                     if (chestHit.length > 0 && chestHit[0].distance < 2.0 && (headHit.length === 0 || headHit[0].distance > 2.0)) {
-                        velocity.y = 40; // Vault up
-                        velocity.add(fwdDir.multiplyScalar(30)); // Push forward
+                        velocity.y = 40; 
+                        velocity.add(fwdDir.multiplyScalar(30)); 
                     }
                 }
 
@@ -1262,7 +1427,7 @@
                     let dz = controls.getObject().position.z - pad.position.z;
                     let dy = controls.getObject().position.y - pad.position.y;
                     if (dx*dx + dz*dz < 25 && dy > 0 && dy < 10 && velocity.y <= 0) {
-                        velocity.y = 120; // Massive launch
+                        velocity.y = 120; 
                         isGrounded = false;
                         spawnParticles(pad.position, 20, 'spark', 0x00ffcc);
                     }
@@ -1273,7 +1438,7 @@
                 let gHits = bulletRaycaster.intersectObjects(mapColliders);
                 
                 let floorY = -1000; 
-                let playerHeight = isProne ? 1.5 : (isSliding ? 2.5 : 5); // Dynamic player height for prone/slide
+                let playerHeight = isProne ? 1.5 : (isSliding ? 2.5 : 5); 
                 
                 if (gHits.length > 0 && gHits[0].distance < 15) {
                     floorY = gHits[0].point.y + playerHeight; 
@@ -1315,9 +1480,9 @@
                 }
             }
 
-            const isSprinting = isSliding && isGrounded && (moveFwd || moveL || moveR);
+            const isSprintingFX = (isSliding || isSprintingState) && isGrounded && (moveFwd || moveL || moveR);
             motionLines.forEach((l) => {
-                if(isSprinting || isWallRunning) { l.material.opacity = 0.5; l.scale.z = 2 + Math.random() * 5; l.position.z += 1; if(l.position.z > 0) l.position.z = -15; } 
+                if(isSprintingFX || isWallRunning) { l.material.opacity = 0.5; l.scale.z = 2 + Math.random() * 5; l.position.z += 1; if(l.position.z > 0) l.position.z = -15; } 
                 else { l.material.opacity = THREE.MathUtils.lerp(l.material.opacity, 0, 0.1); }
             });
 
@@ -1332,6 +1497,14 @@
                         detonateBarrel(hits[0].object);
                     } else {
                         spawnParticles(hits[0].point, 5, 'spark', 0xaaaaaa);
+                        
+                        if (b.userData.perk === "Rebound" && !b.userData.hasRebounded && Math.random() < 0.55) {
+                            b.userData.hasRebounded = true;
+                            b.userData.velocity.reflect(hits[0].face.normal);
+                            b.position.copy(hits[0].point).add(hits[0].face.normal.clone().multiplyScalar(0.1));
+                            b.lookAt(b.position.clone().add(b.userData.velocity));
+                            continue;
+                        }
                     }
                     scene.remove(b); bullets.splice(i, 1); continue;
                 }
@@ -1341,15 +1514,25 @@
                 const targetObj = isMultiplayer ? networkPlayerObj : dummy;
 
                 if(targetObj && b.position.distanceTo(targetObj.position) < 3.5) { 
-                    damageTexts.push(new DamageNumber(b.position, b.userData.damage));
-                    spawnParticles(b.position, 5, 'spark', 0xff007f);
+                    
+                    let isHeadshot = (b.position.y - targetObj.position.y) >= 1.8;
+                    let finalDmg = b.userData.damage;
+                    
+                    if (b.userData.perk === "Head-Hunter") {
+                        finalDmg = isHeadshot ? finalDmg * 2.0 : finalDmg * 0.5; 
+                    } else {
+                        finalDmg = isHeadshot ? finalDmg * 1.5 : finalDmg; 
+                    }
+                    
+                    damageTexts.push(new DamageNumber(b.position, finalDmg));
+                    spawnParticles(b.position, 5, 'spark', isHeadshot ? 0xff0000 : 0xff007f);
                     
                     if (isMultiplayer) {
                         if (peerConn && peerConn.open) {
-                            peerConn.send({ type: 'hit', damage: b.userData.damage });
+                            peerConn.send({ type: 'hit', damage: finalDmg });
                         }
                     } else {
-                        aiController.takeDamage(b.userData.damage);
+                        aiController.takeDamage(finalDmg);
                     }
                     
                     scene.remove(b); bullets.splice(i, 1); continue;
@@ -1366,6 +1549,14 @@
                         detonateBarrel(hits[0].object);
                     } else {
                         spawnParticles(hits[0].point, 5, 'spark', 0xaaaaaa);
+
+                        if (b.userData.perk === "Rebound" && !b.userData.hasRebounded && Math.random() < 0.55) {
+                            b.userData.hasRebounded = true;
+                            b.userData.velocity.reflect(hits[0].face.normal);
+                            b.position.copy(hits[0].point).add(hits[0].face.normal.clone().multiplyScalar(0.1));
+                            b.lookAt(b.position.clone().add(b.userData.velocity));
+                            continue;
+                        }
                     }
                     scene.remove(b); enemyBullets.splice(i, 1); continue;
                 }
@@ -1373,7 +1564,18 @@
                 b.position.add(b.userData.velocity); b.scale.z = 3.5; 
 
                 if(b.position.distanceTo(controls.getObject().position) < 3.0) { 
-                    takePlayerDamage(b.userData.damage);
+                    
+                    let headshotThreshold = controls.getObject().position.y - 1.5;
+                    let isHeadshotPlayer = b.position.y > headshotThreshold;
+                    let finalDmg = b.userData.damage;
+                    
+                    if (b.userData.perk === "Head-Hunter") {
+                        finalDmg = isHeadshotPlayer ? finalDmg * 2.0 : finalDmg * 0.5;
+                    } else {
+                        finalDmg = isHeadshotPlayer ? finalDmg * 1.5 : finalDmg;
+                    }
+                    
+                    takePlayerDamage(finalDmg);
                     scene.remove(b); enemyBullets.splice(i, 1); continue;
                 }
                 
@@ -1381,7 +1583,6 @@
                 if(remoteObj && b.position.distanceTo(remoteObj.position) > 1000) { scene.remove(b); enemyBullets.splice(i, 1); }
             }
 
-            // TRUE SELF-DAMAGE AOE LOOP
             for(let i = activeAOEs.length - 1; i >= 0; i--) {
                 const aoe = activeAOEs[i];
                 
@@ -1394,7 +1595,6 @@
                     let radius = aoe.radius || 15;
                     const targetObj = isMultiplayer ? networkPlayerObj : dummy;
                     
-                    // Hurts AI
                     if (targetObj && aoe.pos.distanceTo(targetObj.position) < radius && aoe.life % 10 === 0) { 
                         damageTexts.push(new DamageNumber(targetObj.position.clone().add(new THREE.Vector3(0,2,0)), aoe.damage)); 
                         
@@ -1405,7 +1605,6 @@
                         }
                     }
                     
-                    // Hurts Player
                     if (aoe.pos.distanceTo(controls.getObject().position) < radius && aoe.life % 10 === 0) {
                         takePlayerDamage(aoe.damage); 
                     }
@@ -1415,8 +1614,30 @@
             }
 
             for(let i = throwables.length - 1; i >= 0; i--) {
-                const t = throwables[i]; t.userData.vel.y -= 0.5; t.position.add(t.userData.vel.clone().multiplyScalar(0.016));
-                const speed = t.userData.vel.length(); t.scale.set(1, 1, 1 + (speed * 0.05)); t.lookAt(t.position.clone().add(t.userData.vel));
+                const t = throwables[i]; 
+                
+                if (t.userData.type === "tnt") {
+                    if(t.userData.explodeOnImpact && t.userData.grounded) {
+                        detonateTNT(t);
+                        throwables.splice(i, 1);
+                        continue;
+                    }
+                    if(!t.userData.explodeOnImpact) {
+                        t.userData.life--;
+                        if(t.userData.life <= 0) {
+                            detonateTNT(t);
+                            throwables.splice(i, 1);
+                            continue;
+                        }
+                    }
+                }
+
+                t.userData.vel.y -= 0.5; t.position.add(t.userData.vel.clone().multiplyScalar(0.016));
+                const speed = t.userData.vel.length(); 
+                if (t.userData.type !== "tnt") {
+                    t.scale.set(1, 1, 1 + (speed * 0.05)); 
+                    t.lookAt(t.position.clone().add(t.userData.vel));
+                }
                 
                 const stepDist = speed * 0.016;
                 
@@ -1427,22 +1648,27 @@
                     if (!t.userData.grounded) {
                         t.userData.grounded = true;
                         t.position.copy(hits[0].point); 
-                        setTimeout(() => { if(throwables.includes(t)) { detonate(t); const idx = throwables.indexOf(t); if(idx > -1) throwables.splice(idx, 1); } }, 100);
+                        if (t.userData.type !== "tnt") {
+                            setTimeout(() => { if(throwables.includes(t)) { detonate(t); const idx = throwables.indexOf(t); if(idx > -1) throwables.splice(idx, 1); } }, 100);
+                        }
                     }
                 } else {
                     bulletRaycaster.set(t.position, new THREE.Vector3(0, -1, 0));
                     let floorHits = bulletRaycaster.intersectObjects(mapColliders);
                     if (floorHits.length > 0 && floorHits[0].distance < 0.5 && !t.userData.grounded) {
                         t.userData.grounded = true;
-                        t.position.y = floorHits[0].point.y + 0.3;
-                        setTimeout(() => { if(throwables.includes(t)) { detonate(t); const idx = throwables.indexOf(t); if(idx > -1) throwables.splice(idx, 1); } }, 100);
+                        t.position.y = floorHits[0].point.y + (t.userData.type === "tnt" ? 0.75 : 0.3);
+                        if (t.userData.type !== "tnt") {
+                            setTimeout(() => { if(throwables.includes(t)) { detonate(t); const idx = throwables.indexOf(t); if(idx > -1) throwables.splice(idx, 1); } }, 100);
+                        }
                     }
                 }
             }
 
             for(let i = particles.length - 1; i >= 0; i--) { particles[i].update(); if(particles[i].life <= 0) { scene.remove(particles[i].mesh); particles.splice(i, 1); } }
 
-            let baseFov = (isSliding && isGrounded) ? 100 : 75; const targetFov = isScoping ? 40 : baseFov;
+            let baseFov = (isSliding && isGrounded) ? 100 : (isSprintingState ? 90 : 75); 
+            const targetFov = isScoping ? 40 : baseFov;
             camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.2); camera.updateProjectionMatrix();
             if (weaponGroup.children[0]) {
                 const targetWeaponPos = isScoping ? new THREE.Vector3(0, -0.45, -0.8) : new THREE.Vector3(0.8, -0.7, -1.2);
