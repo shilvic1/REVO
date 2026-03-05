@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -301,7 +300,6 @@
             <div class="map-card" data-map="Container"><h3>Container Yard</h3><p>Classic Roblox FPS</p></div>
             <div class="map-card" data-map="Random" style="border-color: #ffd700;"><h3>Random Arena</h3><p>Let Fate Decide</p></div>
         </div>
-        <!-- Settings Button for Map Screen -->
         <button class="game-settings-btn" id="map-settings-btn">
             <i class="fas fa-cog"></i> Settings
         </button>
@@ -312,18 +310,15 @@
         <div class="sub-text">CHOOSE YOUR LOADOUT</div>
         <div class="loadout-container" id="menu-grid"></div>
         <button id="deploy-btn" disabled>DEPLOY TO BATTLE</button>
-        <!-- Settings Button for Selection Screen -->
         <button class="game-settings-btn" id="loadout-settings-btn" style="position: relative; margin-top: 20px;">
             <i class="fas fa-cog"></i> Settings
         </button>
     </div>
 
-    <!-- Settings Modal -->
     <div id="settings-modal">
         <div class="settings-content">
             <h2><i class="fas fa-cog"></i> GAME SETTINGS</h2>
             
-            <!-- Difficulty Setting -->
             <div class="setting-group">
                 <label>Difficulty Meter</label>
                 <div class="difficulty-options">
@@ -334,7 +329,6 @@
                 </div>
             </div>
 
-            <!-- Big Maps Setting -->
             <div class="setting-group">
                 <label>Map Options</label>
                 <div class="toggle-option">
@@ -346,7 +340,6 @@
                 </div>
             </div>
 
-            <!-- Multiple Enemies Setting -->
             <div class="setting-group">
                 <label>Enemy Options</label>
                 <div class="toggle-option">
@@ -649,6 +642,13 @@
         let targetSway = new THREE.Vector2(0,0);
         let currentSway = new THREE.Vector2(0,0);
 
+        // --- NEW ADDITIONS START ---
+        let targetRecoil = 0;
+        let currentRecoil = 0;
+        let shells = [];
+        let muzzleLight, muzzleSprite;
+        // --- NEW ADDITIONS END ---
+
         let bullets = [];
         let enemyBullets = []; 
         let particles = [];
@@ -813,7 +813,12 @@
             ann.style.opacity = 1;
             setTimeout(() => { if(!isGameOver) ann.style.opacity = 0; }, 2000);
 
-            activeAOEs.forEach(aoe => { if(aoe.light) scene.remove(aoe.light); }); activeAOEs = [];
+            activeAOEs.forEach(aoe => { 
+                if(aoe.light) scene.remove(aoe.light); 
+                if(aoe.beamMesh) scene.remove(aoe.beamMesh);
+                if(aoe.ringMesh) scene.remove(aoe.ringMesh);
+            }); 
+            activeAOEs = [];
             bullets.forEach(b => scene.remove(b)); bullets = [];
             enemyBullets.forEach(b => scene.remove(b)); enemyBullets = [];
             throwables.forEach(t => scene.remove(t)); throwables = [];
@@ -1358,6 +1363,24 @@
 
             buildMap(selectedMap || "Playground");
 
+            // --- NEW ADDITIONS START ---
+            muzzleLight = new THREE.PointLight(0xffaa00, 0, 20);
+            scene.add(muzzleLight);
+            
+            const flashCanvas = document.createElement('canvas');
+            flashCanvas.width = 64; flashCanvas.height = 64;
+            const fctx = flashCanvas.getContext('2d');
+            const fgrad = fctx.createRadialGradient(32,32,0, 32,32,32);
+            fgrad.addColorStop(0, 'rgba(255, 255, 200, 1)');
+            fgrad.addColorStop(0.2, 'rgba(255, 200, 50, 1)');
+            fgrad.addColorStop(1, 'rgba(255, 100, 0, 0)');
+            fctx.fillStyle = fgrad; fctx.fillRect(0,0,64,64);
+            const flashTex = new THREE.CanvasTexture(flashCanvas);
+            
+            muzzleSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, blending: THREE.AdditiveBlending, transparent: true, opacity: 0 }));
+            scene.add(muzzleSprite);
+            // --- NEW ADDITIONS END ---
+
             controls = new PointerLockControls(camera, document.body); controls.lock();
 
             let spawnP = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : new THREE.Vector3(0, 10, 40);
@@ -1615,6 +1638,40 @@
                 let hits = bulletRaycaster.intersectObjects(mapColliders);
                 let center = hits.length > 0 ? hits[0].point : camera.position.clone().add(dir.multiplyScalar(100));
 
+                // --- NEW ADDITIONS START (OBS Ring & Beam Effect) ---
+                const beamGeo = new THREE.CylinderGeometry(5, 5, 1000, 32);
+                const beamMat = new THREE.MeshBasicMaterial({color: 0xffdd00, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, side: THREE.DoubleSide});
+                const beam = new THREE.Mesh(beamGeo, beamMat);
+                beam.position.copy(center);
+                beam.position.y += 500;
+                scene.add(beam);
+
+                const ringGeo = new THREE.TorusGeometry(5, 1, 16, 64);
+                const ringMat = new THREE.MeshBasicMaterial({color: 0xff5500, transparent: true, opacity: 1, blending: THREE.AdditiveBlending});
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.position.copy(center);
+                ring.rotation.x = -Math.PI / 2;
+                ring.position.y += 1;
+                scene.add(ring);
+
+                const beamLight = new THREE.PointLight(0xffaa00, 100, 1000);
+                beamLight.position.copy(center);
+                beamLight.position.y += 10;
+                scene.add(beamLight);
+
+                activeAOEs.push({ 
+                    pos: center, 
+                    type: 'obs_strike', 
+                    color: 0xffaa00, 
+                    life: 60, 
+                    light: beamLight, 
+                    damage: 100, 
+                    radius: 80,
+                    beamMesh: beam,
+                    ringMesh: ring
+                });
+                // --- NEW ADDITIONS END ---
+
                 for(let i=0; i<20; i++) {
                     spawnTNT(center.clone().add(new THREE.Vector3((Math.random()-0.5)*30, Math.random()*20 + 10, (Math.random()-0.5)*30)), false);
                 }
@@ -1642,6 +1699,40 @@
             canShoot = false; const shots = config.type === "burst" ? 3 : 1;
             for(let i=0; i<shots; i++) {
                 spawnBullet(config.damage); weaponGroup.position.z += 0.1;
+                
+                // --- NEW ADDITIONS START ---
+                let kickAmt = config.kick || (config.type === "auto" ? 0.02 : 0.04);
+                targetRecoil += kickAmt;
+
+                if (config.type !== "melee" && config.type !== "obs") {
+                    const barrelTipLocal = new THREE.Vector3(0.8, -0.6, -2.5);
+                    const barrelTipWorld = barrelTipLocal.clone().applyMatrix4(camera.matrixWorld);
+                    muzzleLight.position.copy(barrelTipWorld);
+                    muzzleLight.intensity = 5;
+                    muzzleSprite.position.copy(barrelTipWorld);
+                    muzzleSprite.material.opacity = 1;
+                    muzzleSprite.scale.set(1.5 + Math.random()*1.0, 1.5 + Math.random()*1.0, 1);
+                    muzzleSprite.material.rotation = Math.random() * Math.PI * 2;
+                }
+
+                if (config.type !== "melee" && config.type !== "obs" && config.type !== "laser") {
+                    const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 6), new THREE.MeshStandardMaterial({color: 0xddaa00, roughness: 0.3, metalness: 0.8}));
+                    const ejectPortLocal = new THREE.Vector3(1.0, -0.6, -1.2); 
+                    shell.position.copy(ejectPortLocal).applyMatrix4(camera.matrixWorld);
+                    const ejectDirLocal = new THREE.Vector3(1 + Math.random()*0.5, 1 + Math.random()*0.5, Math.random()*0.5);
+                    const ejectDirWorld = ejectDirLocal.clone().transformDirection(camera.matrixWorld).normalize();
+                    shell.userData = { 
+                        velocity: ejectDirWorld.multiplyScalar(0.15 + Math.random()*0.1),
+                        rotAxis: new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize(),
+                        rotSpeed: 0.2 + Math.random()*0.3,
+                        life: 150,
+                        grounded: false
+                    };
+                    scene.add(shell);
+                    shells.push(shell);
+                }
+                // --- NEW ADDITIONS END ---
+
                 if(config.kick) velocity.z += config.kick * 10;
                 if(shots > 1) await new Promise(r => setTimeout(r, 80));
             }
@@ -2060,7 +2151,23 @@
             for(let i = activeAOEs.length - 1; i >= 0; i--) {
                 const aoe = activeAOEs[i];
                 
-                if(Math.random() > 0.3) {
+                // --- NEW ADDITIONS START (OBS Effects Updates) ---
+                if (aoe.type === 'obs_strike') {
+                    if (aoe.beamMesh) {
+                        aoe.beamMesh.material.opacity = aoe.life / 60;
+                        aoe.beamMesh.scale.x = 1 + (60 - aoe.life) * 0.2;
+                        aoe.beamMesh.scale.z = 1 + (60 - aoe.life) * 0.2;
+                    }
+                    if (aoe.ringMesh) {
+                        aoe.ringMesh.scale.set(1 + (60 - aoe.life) * 2.0, 1 + (60 - aoe.life) * 2.0, 1);
+                        aoe.ringMesh.material.opacity = aoe.life / 60;
+                    }
+                    currentSway.x += (Math.random() - 0.5) * 0.3;
+                    currentSway.y += (Math.random() - 0.5) * 0.3;
+                }
+                // --- NEW ADDITIONS END ---
+
+                if(Math.random() > 0.3 && aoe.type !== 'obs_strike') {
                     let spread = aoe.radius ? aoe.radius * 0.8 : 2;
                     spawnParticles(aoe.pos.clone().add(new THREE.Vector3((Math.random()-0.5)*spread, Math.random()*2, (Math.random()-0.5)*spread)), 1, aoe.type, aoe.color);
                 }
@@ -2085,6 +2192,10 @@
                 aoe.life--; 
                 if(aoe.life <= 0) { 
                     if(aoe.light) scene.remove(aoe.light); 
+                    // --- NEW ADDITIONS START ---
+                    if(aoe.beamMesh) scene.remove(aoe.beamMesh);
+                    if(aoe.ringMesh) scene.remove(aoe.ringMesh);
+                    // --- NEW ADDITIONS END ---
                     activeAOEs.splice(i, 1); 
                 }
             }
@@ -2151,10 +2262,53 @@
                 weaponGroup.children[0].position.lerp(targetWeaponPos, 0.2);
             }
             weaponGroup.position.y = Math.sin(time * 0.005) * 0.01; weaponGroup.position.x = Math.cos(time * 0.003) * 0.01;
+
+            // --- NEW ADDITIONS START ---
+            if (muzzleLight && muzzleLight.intensity > 0) muzzleLight.intensity = THREE.MathUtils.lerp(muzzleLight.intensity, 0, 0.2);
+            if (muzzleSprite && muzzleSprite.material.opacity > 0) muzzleSprite.material.opacity = THREE.MathUtils.lerp(muzzleSprite.material.opacity, 0, 0.2);
+
+            for(let i = shells.length - 1; i >= 0; i--) {
+                const s = shells[i];
+                s.userData.life--;
+                if (s.userData.life <= 0) {
+                    scene.remove(s);
+                    shells.splice(i, 1);
+                    continue;
+                }
+
+                if (!s.userData.grounded) {
+                    s.userData.velocity.y -= 0.01; 
+                    s.position.add(s.userData.velocity);
+                    s.rotateOnAxis(s.userData.rotAxis, s.userData.rotSpeed);
+                    
+                    bulletRaycaster.set(s.position, new THREE.Vector3(0, -1, 0));
+                    let hits = bulletRaycaster.intersectObjects(mapColliders);
+                    if (hits.length > 0 && hits[0].distance < 0.05) {
+                        s.userData.grounded = true;
+                        s.position.y = hits[0].point.y + 0.02;
+                        s.rotation.x = Math.PI / 2; 
+                        s.userData.velocity.set(0,0,0);
+                    } else if (s.position.y < -50) {
+                        scene.remove(s);
+                        shells.splice(i, 1);
+                        continue;
+                    }
+                }
+            }
+
+            targetRecoil = THREE.MathUtils.lerp(targetRecoil, 0, 0.08);
+            currentRecoil = THREE.MathUtils.lerp(currentRecoil, targetRecoil, 0.2);
+            camera.rotation.x += currentRecoil;
+            // --- NEW ADDITIONS END ---
+
             renderer.render(scene, camera);
+
+            // --- NEW ADDITIONS RESTORE START ---
+            camera.rotation.x -= currentRecoil;
+            // --- NEW ADDITIONS RESTORE END ---
         }
 
         window.onresize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
-    </script>
+    </script>   
 </body>
 </html>
