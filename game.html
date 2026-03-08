@@ -37,6 +37,16 @@
             z-index: 210; display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: white;
         }
+        
+        /* MULTIPLAYER VOTING SCREEN */
+        #voting-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
+            z-index: 220; display: none; flex-direction: column; align-items: center; justify-content: center;
+            color: white;
+        }
+        #voting-timer { font-size: 3rem; margin-top: 20px; font-weight: 900; color: #00ffcc; text-shadow: 0 0 15px #00ffcc;}
+
         .map-cards { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; justify-content: center;}
         .map-card {
             background: #222; border: 2px solid #444; padding: 20px; border-radius: 10px; cursor: pointer;
@@ -300,7 +310,6 @@
     <div id="map-screen">
         <h1 id="map-header">SELECT ARENA</h1>
         <div class="map-cards" id="map-cards-container">
-            <div class="map-card" data-map="Arena" style="border-color: #00ffcc; box-shadow: 0 0 10px rgba(0,255,204,0.2);"><h3>Rivals Arena</h3><p>Competitive Symmetrical</p></div>
             <div class="map-card" data-map="Playground"><h3>The Playground</h3><p>High-Contrast Plastic</p></div>
             <div class="map-card" data-map="SkyPort"><h3>Sky Port</h3><p>Clean White/Minimalist</p></div>
             <div class="map-card" data-map="Construction"><h3>Construction Site</h3><p>High Altitude Danger</p></div>
@@ -310,6 +319,12 @@
         <button class="game-settings-btn" id="map-settings-btn">
             <i class="fas fa-cog"></i> Settings
         </button>
+    </div>
+
+    <div id="voting-screen">
+        <h1 id="voting-header">VOTE FOR ARENA</h1>
+        <div class="map-cards" id="voting-cards-container"></div>
+        <div id="voting-timer">15</div>
     </div>
 
     <div id="selection-screen">
@@ -326,6 +341,17 @@
         <div class="settings-content">
             <h2><i class="fas fa-cog"></i> GAME SETTINGS</h2>
             
+            <div class="setting-group">
+                <label>Gameplay</label>
+                <div class="toggle-option">
+                    <span>Auto-Reload (Empty Mag)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="auto-reload-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
             <div class="setting-group">
                 <label>Difficulty Meter</label>
                 <div class="difficulty-options">
@@ -390,12 +416,231 @@
     <script type="module">
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+
+        // --- WEB AUDIO API (SFX) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const SoundEngine = {
+            playTone: function(freq, type, duration, vol=0.1) {
+                if(audioCtx.state === 'suspended') return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.stop(audioCtx.currentTime + duration);
+            },
+            playNoise: function(duration, vol=0.1, isStep=false) {
+                if(audioCtx.state === 'suspended') return;
+                const bufferSize = audioCtx.sampleRate * duration;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = isStep ? 'lowpass' : 'highpass';
+                filter.frequency.value = isStep ? 800 : 2000;
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                noise.start();
+            },
+            playAmbience: function(mapName) {
+                if(audioCtx.state === 'suspended') return;
+                this.stopAmbience();
+
+                this.ambienceGain = audioCtx.createGain();
+                this.ambienceGain.connect(audioCtx.destination);
+                this.ambienceGain.gain.value = 0.05;
+
+                if (mapName === 'SkyPort') {
+                    const bufferSize = audioCtx.sampleRate * 2;
+                    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                    this.ambienceNoise = audioCtx.createBufferSource();
+                    this.ambienceNoise.buffer = buffer;
+                    this.ambienceNoise.loop = true;
+                    
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 300;
+                    
+                    const lfo = audioCtx.createOscillator();
+                    lfo.type = 'sine';
+                    lfo.frequency.value = 0.15;
+                    const lfoGain = audioCtx.createGain();
+                    lfoGain.gain.value = 200;
+                    lfo.connect(lfoGain); lfoGain.connect(filter.frequency);
+                    lfo.start();
+                    
+                    this.ambienceNoise.connect(filter); filter.connect(this.ambienceGain);
+                    this.ambienceNoise.start();
+                } else if (mapName === 'Construction') {
+                    this.ambienceOsc = audioCtx.createOscillator();
+                    this.ambienceOsc.type = 'sawtooth';
+                    this.ambienceOsc.frequency.value = 55;
+                    
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 150;
+                    
+                    this.ambienceOsc.connect(filter); filter.connect(this.ambienceGain);
+                    this.ambienceOsc.start();
+                    
+                    this.constructionInterval = setInterval(() => {
+                        if (Math.random() > 0.6) this.playTone(100 + Math.random()*400, 'square', 0.1, 0.015);
+                    }, 3000);
+                }
+            },
+            stopAmbience: function() {
+                if(this.ambienceOsc) { this.ambienceOsc.stop(); this.ambienceOsc = null; }
+                if(this.ambienceNoise) { this.ambienceNoise.stop(); this.ambienceNoise = null; }
+                if(this.ambienceGain) { this.ambienceGain.disconnect(); this.ambienceGain = null; }
+                if(this.constructionInterval) clearInterval(this.constructionInterval);
+            },
+            explode: function() {
+                if(audioCtx.state === 'suspended') return;
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const oscGain = audioCtx.createGain();
+                const noise = audioCtx.createBufferSource();
+                const noiseGain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+
+                const bufferSize = audioCtx.sampleRate * 2.0;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                noise.buffer = buffer;
+
+                osc.connect(oscGain); oscGain.connect(audioCtx.destination);
+                noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(80, t); 
+                osc.frequency.exponentialRampToValueAtTime(10, t + 1.0);
+                oscGain.gain.setValueAtTime(2.0, t); 
+                oscGain.gain.exponentialRampToValueAtTime(0.01, t + 1.5);
+                
+                filter.type = 'lowpass'; 
+                filter.frequency.setValueAtTime(3000, t); 
+                filter.frequency.exponentialRampToValueAtTime(100, t + 1.5);
+                
+                noiseGain.gain.setValueAtTime(2.0, t); 
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 2.0);
+                
+                osc.start(t); osc.stop(t + 1.5); 
+                noise.start(t); noise.stop(t + 2.0);
+            },
+            shoot: function(type) {
+                if(audioCtx.state === 'suspended') return;
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const oscGain = audioCtx.createGain();
+                const noise = audioCtx.createBufferSource();
+                const noiseGain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+
+                const bufferSize = audioCtx.sampleRate * 1.0;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                noise.buffer = buffer;
+
+                osc.connect(oscGain); oscGain.connect(audioCtx.destination);
+                noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(audioCtx.destination);
+
+                if(type === 'sniper') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(150, t); osc.frequency.exponentialRampToValueAtTime(20, t + 0.3);
+                    oscGain.gain.setValueAtTime(1.0, t); oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+                    filter.type = 'lowpass'; filter.frequency.setValueAtTime(4000, t); filter.frequency.exponentialRampToValueAtTime(500, t + 0.5);
+                    noiseGain.gain.setValueAtTime(1.0, t); noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+                    osc.start(t); osc.stop(t + 0.4); noise.start(t); noise.stop(t + 0.6);
+                } else if (type === 'rpg' || type === 'obs') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(100, t); osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
+                    oscGain.gain.setValueAtTime(1.5, t); oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+                    filter.type = 'lowpass'; filter.frequency.setValueAtTime(2000, t); filter.frequency.exponentialRampToValueAtTime(100, t + 0.8);
+                    noiseGain.gain.setValueAtTime(1.2, t); noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 1.0);
+                    osc.start(t); osc.stop(t + 0.8); noise.start(t); noise.stop(t + 1.0);
+                } else if (type === 'laser') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(1200, t); osc.frequency.exponentialRampToValueAtTime(400, t + 0.2);
+                    oscGain.gain.setValueAtTime(0.3, t); oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+                    osc.start(t); osc.stop(t + 0.2);
+                } else if (type === 'melee') {
+                    filter.type = 'highpass'; filter.frequency.setValueAtTime(1000, t);
+                    noiseGain.gain.setValueAtTime(0.5, t); noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                    noise.start(t); noise.stop(t + 0.1);
+                } else { 
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(250, t); osc.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+                    oscGain.gain.setValueAtTime(0.6, t); oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                    filter.type = 'lowpass'; filter.frequency.setValueAtTime(5000, t); filter.frequency.exponentialRampToValueAtTime(800, t + 0.2);
+                    noiseGain.gain.setValueAtTime(0.8, t); noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                    osc.start(t); osc.stop(t + 0.15); noise.start(t); noise.stop(t + 0.3);
+                }
+            },
+            hit: function(isHeadshot) {
+                if(audioCtx.state === 'suspended') return;
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                
+                if(isHeadshot) {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(2500, t);
+                    osc.frequency.exponentialRampToValueAtTime(800, t + 0.15);
+                    gain.gain.setValueAtTime(0.8, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+                    osc.start(t); osc.stop(t + 0.2);
+                } else {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(1000, t);
+                    osc.frequency.exponentialRampToValueAtTime(200, t + 0.1);
+                    gain.gain.setValueAtTime(0.5, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                    osc.start(t); osc.stop(t + 0.1);
+                    
+                    const noise = audioCtx.createBufferSource();
+                    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.05, audioCtx.sampleRate);
+                    for(let i=0; i<buffer.length; i++) buffer.getChannelData(0)[i] = Math.random()*2-1;
+                    noise.buffer = buffer;
+                    const nGain = audioCtx.createGain();
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'highpass'; filter.frequency.value = 4000;
+                    noise.connect(filter); filter.connect(nGain); nGain.connect(audioCtx.destination);
+                    nGain.gain.setValueAtTime(0.3, t); nGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+                    noise.start(t); noise.stop(t + 0.05);
+                }
+            },
+            wallHit: function() {
+                this.playNoise(0.05, 0.1, true); 
+            },
+            step: function() {
+                this.playNoise(0.05, 0.05, true); 
+            }
+        };
 
         // --- GAME SETTINGS STATE ---
         const gameSettings = {
-            difficulty: 'easy', // easy, medium, hard, impossible
+            difficulty: 'easy', 
             bigMaps: false,
-            multipleEnemies: false
+            multipleEnemies: false,
+            autoReload: false
         };
 
         // --- DIFFICULTY SETTINGS ---
@@ -414,14 +659,11 @@
         const difficultyBtns = document.querySelectorAll('.difficulty-btn');
         const bigMapsToggle = document.getElementById('big-maps-toggle');
         const multipleEnemiesToggle = document.getElementById('multiple-enemies-toggle');
+        const autoReloadToggle = document.getElementById('auto-reload-toggle');
 
-        function openSettingsModal() {
-            settingsModal.style.display = 'flex';
-        }
-
+        function openSettingsModal() { settingsModal.style.display = 'flex'; }
         function closeSettingsModal() {
             settingsModal.style.display = 'none';
-            // Save settings to localStorage
             localStorage.setItem('revoGameSettings', JSON.stringify(gameSettings));
         }
 
@@ -429,7 +671,6 @@
         loadoutSettingsBtn.addEventListener('click', openSettingsModal);
         closeSettingsBtn.addEventListener('click', closeSettingsModal);
 
-        // Difficulty button handling
         difficultyBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 difficultyBtns.forEach(b => b.classList.remove('selected'));
@@ -438,7 +679,6 @@
             });
         });
 
-        // Big Maps toggle
         bigMapsToggle.addEventListener('change', () => {
             gameSettings.bigMaps = bigMapsToggle.checked;
             multipleEnemiesToggle.disabled = !bigMapsToggle.checked;
@@ -448,28 +688,26 @@
             }
         });
 
-        // Multiple Enemies toggle
         multipleEnemiesToggle.addEventListener('change', () => {
             gameSettings.multipleEnemies = multipleEnemiesToggle.checked;
         });
+        
+        autoReloadToggle.addEventListener('change', () => {
+            gameSettings.autoReload = autoReloadToggle.checked;
+        });
 
-        // Load saved settings
         const savedSettings = localStorage.getItem('revoGameSettings');
         if (savedSettings) {
             const parsed = JSON.parse(savedSettings);
             Object.assign(gameSettings, parsed);
-            
-            // Apply saved settings to UI
             difficultyBtns.forEach(btn => {
-                if (btn.dataset.difficulty === gameSettings.difficulty) {
-                    btn.classList.add('selected');
-                } else {
-                    btn.classList.remove('selected');
-                }
+                if (btn.dataset.difficulty === gameSettings.difficulty) btn.classList.add('selected');
+                else btn.classList.remove('selected');
             });
             bigMapsToggle.checked = gameSettings.bigMaps;
             multipleEnemiesToggle.checked = gameSettings.multipleEnemies;
             multipleEnemiesToggle.disabled = !gameSettings.bigMaps;
+            autoReloadToggle.checked = gameSettings.autoReload || false;
         }
 
         // --- NETWORK & MULTIPLAYER SETUP ---
@@ -484,10 +722,76 @@
         let peerConn;
         let networkPlayerObj = null;
 
+        let votes = { p1: null, p2: null };
+        let votingMaps = [];
+
+        function startVotingPhase() {
+            document.getElementById('map-screen').style.display = 'none';
+            document.getElementById('voting-screen').style.display = 'flex';
+            const container = document.getElementById('voting-cards-container');
+            container.innerHTML = '';
+            
+            votingMaps.forEach(mapData => {
+                const card = document.createElement('div');
+                card.className = 'map-card';
+                card.innerHTML = `<h3>${mapData.name}</h3><p>${mapData.desc}</p>`;
+                card.onclick = () => {
+                    if (votes.p1) return; 
+                    document.querySelectorAll('#voting-cards-container .map-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    votes.p1 = mapData.id;
+                    if (isHost) checkVotes();
+                    else peerConn.send({ type: 'submit_vote', map: mapData.id });
+                };
+                container.appendChild(card);
+            });
+            
+            let timeLeft = 15;
+            document.getElementById('voting-timer').innerText = timeLeft;
+            const interval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('voting-timer').innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    if (isHost && !votes.p1 && !votes.p2) {
+                        votes.p1 = votingMaps[Math.floor(Math.random()*3)].id;
+                        checkVotes(true);
+                    } else if (isHost) {
+                        checkVotes(true);
+                    }
+                }
+            }, 1000);
+        }
+
+        function checkVotes(forceEnd = false) {
+            if (!isHost) return;
+            if ((votes.p1 && votes.p2) || forceEnd) {
+                let winner = votes.p1 || votes.p2 || votingMaps[0].id;
+                if (votes.p1 && votes.p2 && votes.p1 !== votes.p2) {
+                    winner = Math.random() > 0.5 ? votes.p1 : votes.p2;
+                }
+                peerConn.send({ type: 'map_select', map: winner });
+                selectedMap = winner;
+                document.getElementById('voting-screen').style.display = 'none';
+                document.getElementById('selection-screen').style.display = 'flex';
+            }
+        }
+
         if (isMultiplayer) {
+            document.getElementById('map-screen').style.display = 'none';
             document.getElementById('network-status').style.display = 'block';
             document.getElementById('loading-screen').style.display = 'flex';
-            peer = new Peer(isHost ? netRoom : undefined);
+            peer = new Peer(isHost ? netRoom : undefined, {
+                config: {
+                    'iceServers': [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { urls: 'stun:stun3.l.google.com:19302' },
+                        { urls: 'stun:stun4.l.google.com:19302' }
+                    ]
+                }
+            });
 
             if (isHost) {
                 document.getElementById('network-status').innerText = "WAITING FOR OPPONENT...";
@@ -503,8 +807,6 @@
                     peerConn = peer.connect(netRoom, { reliable: true });
                     setupNetwork();
                 });
-                document.getElementById('map-header').innerText = "WAITING FOR HOST TO SELECT ARENA...";
-                document.getElementById('map-cards-container').style.display = 'none';
             }
         }
 
@@ -515,24 +817,45 @@
                 statusEl.innerText = "NETWORK: SECURED";
                 statusEl.style.color = "#00ffcc";
                 statusEl.style.borderColor = "#00ffcc";
+
+                if (isHost) {
+                    const allMaps = [
+                        {id: 'Playground', name: 'The Playground', desc: 'High-Contrast Plastic'},
+                        {id: 'SkyPort', name: 'Sky Port', desc: 'Clean White/Minimalist'},
+                        {id: 'Construction', name: 'Construction Site', desc: 'High Altitude Danger'},
+                        {id: 'Container', name: 'Container Yard', desc: 'Classic Roblox FPS'}
+                    ];
+                    allMaps.sort(() => 0.5 - Math.random());
+                    votingMaps = allMaps.slice(0, 3);
+                    
+                    setTimeout(() => {
+                        peerConn.send({ type: 'start_vote', maps: votingMaps });
+                        startVotingPhase();
+                    }, 1000);
+                }
             });
 
             peerConn.on('data', (data) => {
+                if (data.type === 'start_vote') {
+                    votingMaps = data.maps;
+                    startVotingPhase();
+                }
+                if (data.type === 'submit_vote') {
+                    votes.p2 = data.map;
+                    if (isHost) checkVotes();
+                }
                 if (data.type === 'map_select') {
                     selectedMap = data.map;
                     document.getElementById('map-screen').style.display = 'none';
+                    document.getElementById('voting-screen').style.display = 'none';
                     document.getElementById('selection-screen').style.display = 'flex';
                 }
                 if (data.type === 'state' && networkPlayerObj) {
                     networkPlayerObj.position.copy(data.pos);
                     networkPlayerObj.rotation.y = data.rotY;
                 }
-                if (data.type === 'shoot') {
-                    spawnNetworkBullet(data.pos, data.dir, data.damage, data.perk);
-                }
-                if (data.type === 'hit') {
-                    takePlayerDamage(data.damage, networkPlayerObj);
-                }
+                if (data.type === 'shoot') spawnNetworkBullet(data.pos, data.dir, data.damage, data.perk);
+                if (data.type === 'hit') takePlayerDamage(data.damage, networkPlayerObj);
                 if (data.type === 'death') {
                     pScore++;
                     document.getElementById('p-score').innerText = pScore;
@@ -542,7 +865,7 @@
                     const config = WEAPON_CONFIG[data.name];
                     const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshStandardMaterial({color: config.color}));
                     mesh.position.copy(data.pos);
-                    mesh.userData = { vel: new THREE.Vector3(data.vel.x, data.vel.y, data.vel.z), type: "grenade", config: config, name: data.name, grounded: false };
+                    mesh.userData = { vel: new THREE.Vector3(data.vel.x, data.vel.y, data.vel.z), type: "grenade", config: config, name: data.name, grounded: false, source: networkPlayerObj };
                     scene.add(mesh); throwables.push(mesh);
                 }
                 if (data.type === 'tactical_self') {
@@ -553,7 +876,6 @@
             });
         }
 
-        // --- ROUND LIMIT SYSTEM ---
         const MAX_ROUNDS = 5;
         let isGameOver = false;
 
@@ -565,12 +887,8 @@
                 let resultText = pScore > eScore ? "MATCH VICTORY!" : (eScore > pScore ? "MATCH DEFEAT" : "DRAW");
                 ann.innerHTML = `${resultText}<br><span style="font-size:1.5rem;color:#ccc;">REBOOTING SIMULATION...</span>`;
                 ann.style.opacity = 1;
-                
                 document.getElementById('match-timer').innerText = "0:00";
-                
-                setTimeout(() => {
-                    window.location.reload(); 
-                }, 5000);
+                setTimeout(() => { window.location.reload(); }, 5000);
                 return true;
             }
             return false;
@@ -579,11 +897,8 @@
         function updateBloodUI() {
             let bloodUI = document.getElementById('blood-splatter');
             if (bloodUI) {
-                if (health < 100 && health > 0) {
-                    bloodUI.style.opacity = (100 - Math.max(0, health)) / 100;
-                } else {
-                    bloodUI.style.opacity = 0;
-                }
+                if (health < 100 && health > 0) bloodUI.style.opacity = (100 - Math.max(0, health)) / 100;
+                else bloodUI.style.opacity = 0;
             }
         }
 
@@ -628,7 +943,7 @@
             { name: "SECONDARY", items: ["Standard 9mm", "Shorty", "Magnum .44", "Auto-Pistol", "Silenced USP", "Laser-Pistol", "Hand Cannon"] },
             { name: "TACTICAL", items: ["Molotov", "Flare Gun", "Flashbang", "Smoke Screen", "Shock Trap", "Stim-Shot", "Decoy Grenade"] },
             { name: "MELEE", items: ["Tactical Knife", "Karambit", "Butterfly Knife", "Stun Baton", "Brass Knuckles", "Tomahawk", "Crowbar"] },
-            { name: "PERK", items: ["None", "Head-Hunter", "Rebound"] }
+            { name: "PERK", items: ["None", "Head-Hunter", "Rebound", "Momentum", "Point Blank"] }
         ];
 
         let selectedItems = [null, null, null, null, null];
@@ -641,21 +956,31 @@
 
         // MATCH STATE & ADVANCED MECHANICS STATE
         let selectedMap = null;
-        let roundTimeLength = 150; // 2:30 mins
+        let roundTimeLength = 150; 
         let matchTimeRemaining = roundTimeLength; 
         let pScore = 0;
         let eScore = 0;
         let mapColliders = []; 
-        let aiControllers = []; // Array for multiple AI enemies
+        let aiControllers = []; 
         let isProne = false;
         let isWallRunning = false;
         let isSprintingState = false;
         let jumpPads = [];
         let isKillCam = false;
+        let isSpectating = false;
         let killCamTarget = null;
         let killCamAngle = 0;
+        
+        let momentumStacks = 0;
+        let lastMomentumTick = 0;
+        let lastStepTime = 0;
+        
+        // NEW MOVEMENT STATES
+        let isHanging = false;
+        let canVault = false;
+        let vaultDir = new THREE.Vector3();
 
-        let scene, camera, renderer, controls, weaponGroup;
+        let scene, camera, renderer, composer, bokehPass, controls, weaponGroup;
         let isGrounded = true, velocity = new THREE.Vector3(), direction = new THREE.Vector3();
         let moveFwd = false, moveBwd = false, moveL = false, moveR = false, isSliding = false;
         let activeWeaponIndex = 0;
@@ -665,14 +990,10 @@
 
         let targetSway = new THREE.Vector2(0,0);
         let currentSway = new THREE.Vector2(0,0);
-
-        // --- NEW ADDITIONS START ---
         let targetRecoil = 0;
         let currentRecoil = 0;
         let shells = [];
         let muzzleLight, muzzleSprite;
-        // --- NEW ADDITIONS END ---
-
         let bullets = [];
         let enemyBullets = []; 
         let particles = [];
@@ -681,15 +1002,40 @@
         let motionLines = [];
         let damageTexts = [];
         let dummy;
-        let dummy2; // Second enemy for multiple enemies mode
+        let dummy2; 
 
         const bulletRaycaster = new THREE.Raycaster();
 
-        // Global Stun Function
         function stunEnemies(duration) {
-            aiControllers.forEach(ai => {
-                if (ai) ai.stun = duration;
-            });
+            aiControllers.forEach(ai => { if (ai) ai.stun = duration; });
+        }
+
+        function shatterGlass(glassMesh) {
+            const pos = glassMesh.position.clone();
+            let w = 5, h = 5;
+            if(glassMesh.geometry.parameters) {
+                w = glassMesh.geometry.parameters.width;
+                h = glassMesh.geometry.parameters.height;
+            }
+            
+            scene.remove(glassMesh);
+            const idx = mapColliders.indexOf(glassMesh);
+            if(idx > -1) mapColliders.splice(idx, 1);
+            SoundEngine.playNoise(0.1, 0.5); 
+            
+            for(let i=0; i<20; i++) {
+                const shard = new THREE.Mesh(new THREE.TetrahedronGeometry(Math.random()*0.4 + 0.1), new THREE.MeshPhysicalMaterial({color: 0x88ccff, transmission: 0.9, transparent: true}));
+                shard.position.copy(pos).add(new THREE.Vector3((Math.random()-0.5)*w, (Math.random()-0.5)*h, (Math.random()-0.5)*0.5));
+                shard.userData = {
+                    velocity: new THREE.Vector3((Math.random()-0.5)*0.1, Math.random()*0.1, (Math.random()-0.5)*0.1),
+                    rotAxis: new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize(),
+                    rotSpeed: 0.2 + Math.random()*0.3,
+                    life: 150,
+                    grounded: false
+                };
+                scene.add(shard);
+                shells.push(shard); 
+            }
         }
 
         // --- PROCEDURAL TEXTURES ---
@@ -742,16 +1088,16 @@
         const sparkTex = createParticleTexture('spark');
 
         // --- UI LOGIC ---
-        document.querySelectorAll('.map-card').forEach(card => {
+        document.querySelectorAll('#map-cards-container .map-card').forEach(card => {
             card.onclick = () => {
                 if(isMultiplayer && !isHost) return; 
 
-                document.querySelectorAll('.map-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('#map-cards-container .map-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
                 
                 let chosenMap = card.getAttribute('data-map');
                 if (chosenMap === 'Random') {
-                    const maps = ['Playground', 'SkyPort', 'Construction', 'Container', 'Arena'];
+                    const maps = ['Playground', 'SkyPort', 'Construction', 'Container'];
                     chosenMap = maps[Math.floor(Math.random() * maps.length)];
                 }
                 selectedMap = chosenMap;
@@ -794,10 +1140,11 @@
         function checkDeploy() { document.getElementById('deploy-btn').disabled = selectedItems.includes(null); }
 
         document.getElementById('deploy-btn').onclick = () => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
             document.getElementById('selection-screen').style.display = 'none';
             document.getElementById('ui-layer').style.display = 'block';
             selectedItems.forEach((name, i) => {
-                if (i < 4) { // Ignore perk slot for ammo configuration
+                if (i < 4) { 
                     const config = WEAPON_CONFIG[name];
                     ammoState[i] = config ? (i === 2 ? 1 : config.mag) : 1;
                 }
@@ -805,7 +1152,6 @@
             initGame();
         };
 
-        // --- SECRET CODE LOGIC ---
         let secretBuffer = "";
         window.addEventListener('keydown', (e) => {
             if(e.key && e.key.length === 1) secretBuffer += e.key;
@@ -814,10 +1160,9 @@
                 secretBuffer = "";
                 WEAPON_CONFIG["OBS"] = { mag: Infinity, reload: 0, rpm: 30, type: "obs", color: 0x8b4513, damage: 1500, weight: 1.0 };
                 alert("OBS (Orbital Strike Cannon) UNLOCKED! Added to Melee Weapons (Slot 4).");
-                LOADOUT_DATA[3].items.push("OBS"); // Slot 4 is the Melee category (Index 3)
+                LOADOUT_DATA[3].items.push("OBS"); 
                 buildMenu();
                 
-                // If in game, auto equip it into slot 4
                 if(document.getElementById('ui-layer').style.display === 'block') {
                     selectedItems[3] = "OBS";
                     activeWeaponIndex = 3;
@@ -832,6 +1177,10 @@
         function resetRound() {
             if (isGameOver) return; 
             isKillCam = false;
+            isSpectating = false;
+            isHanging = false;
+            momentumStacks = 0;
+            lastMomentumTick = performance.now();
 
             const ann = document.getElementById('round-announcement');
             ann.innerText = "ROUND RESET";
@@ -853,6 +1202,7 @@
             document.getElementById('hp-bar').style.width = '100%';
             updateBloodUI();
             isProne = false;
+            weaponGroup.visible = true;
             
             let spawnP = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : new THREE.Vector3(0, 10, 40);
             let spawnE = selectedMap === "Construction" ? new THREE.Vector3(-45, 15, -120) : new THREE.Vector3(0, 10, -40);
@@ -861,25 +1211,15 @@
             controls.getObject().position.copy(spawnP);
             velocity.set(0,0,0);
             
-            // Reset AI enemies
             if (gameSettings.multipleEnemies && aiControllers.length >= 2) {
-                aiControllers[0].health = aiControllers[0].maxHealth;
-                aiControllers[0].stun = 0;
+                aiControllers[0].respawn();
                 aiControllers[0].mesh.position.copy(spawnE);
-                aiControllers[0].pickNewTarget();
-                aiControllers[0].randomizeLoadout();
                 
-                aiControllers[1].health = aiControllers[1].maxHealth;
-                aiControllers[1].stun = 0;
+                aiControllers[1].respawn();
                 aiControllers[1].mesh.position.copy(spawnE2);
-                aiControllers[1].pickNewTarget();
-                aiControllers[1].randomizeLoadout();
             } else if (aiControllers.length > 0 && aiControllers[0]) {
-                aiControllers[0].health = aiControllers[0].maxHealth;
-                aiControllers[0].stun = 0;
+                aiControllers[0].respawn();
                 aiControllers[0].mesh.position.copy(spawnE); 
-                aiControllers[0].pickNewTarget();
-                aiControllers[0].randomizeLoadout();
             }
             
             if (networkPlayerObj) {
@@ -913,54 +1253,31 @@
             };
 
             const addJumpPad = (pos) => {
-                const padMat = new THREE.MeshStandardMaterial({color: 0x00ffcc, emissive: 0x0088aa});
-                const padGeo = new THREE.CylinderGeometry(4, 4, 0.5, 16);
-                const pad = new THREE.Mesh(padGeo, padMat);
-                pad.position.set(...pos); scene.add(pad); jumpPads.push(pad);
+                const padGroup = new THREE.Group();
+                padGroup.position.set(...pos);
+
+                const base = new THREE.Mesh(new THREE.BoxGeometry(6, 0.4, 6), new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.8, roughness: 0.2}));
+                base.position.y = 0.2;
+                padGroup.add(base);
+
+                const inner = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 4), new THREE.MeshStandardMaterial({color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 2}));
+                inner.position.y = 0.25;
+                padGroup.add(inner);
+
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.2, 4, 4), new THREE.MeshStandardMaterial({color: 0xffffff, emissive: 0xffffff}));
+                ring.rotation.x = Math.PI/2;
+                ring.rotation.z = Math.PI/4;
+                ring.position.y = 0.5;
+                padGroup.add(ring);
+
+                scene.add(padGroup);
+                jumpPads.push({ mesh: padGroup, position: new THREE.Vector3(...pos) });
             };
 
-            // Calculate map scale based on big maps setting
             const mapScale = gameSettings.bigMaps ? 2.5 : 1;
             const groundGeo = new THREE.PlaneGeometry(300 * mapScale, 300 * mapScale);
             
-            if (mapType === "Arena") {
-                scene.background = new THREE.Color(0x1a1a1a); 
-                const floorTex = generateProceduralTexture('grid', '#2a2a2a', '#ff007f'); 
-                floorTex.repeat.set(20 * mapScale, 20 * mapScale);
-                addObj(groundGeo, new THREE.MeshStandardMaterial({map: floorTex}), [0,0,0], [-Math.PI/2,0,0]);
-
-                const primaryMat = new THREE.MeshStandardMaterial({color: 0xeeeeee, flatShading: true}); 
-                const accentMat = new THREE.MeshStandardMaterial({color: 0x00ffcc, flatShading: true}); 
-
-                addObj(new THREE.BoxGeometry(40, 4, 40), primaryMat, [0, 2, 0]);
-                addObj(new THREE.BoxGeometry(10, 15, 10), accentMat, [0, 9.5, 0]); 
-
-                [[25, 25], [-25, 25], [25, -25], [-25, -25]].forEach(p => {
-                    addObj(new THREE.BoxGeometry(8, 12, 8), primaryMat, [p[0] * mapScale, 6, p[1] * mapScale]);
-                    addJumpPad([p[0] * mapScale, 0.25, (p[1] * mapScale)*0.6]);
-                });
-
-                addObj(new THREE.BoxGeometry(60 * mapScale, 2, 8), primaryMat, [0, 12, 40 * mapScale]);
-                addObj(new THREE.BoxGeometry(60 * mapScale, 2, 8), primaryMat, [0, 12, -40 * mapScale]);
-
-                const rampMat = new THREE.MeshStandardMaterial({color: 0x222222, flatShading: true});
-                addObj(new THREE.BoxGeometry(10, 2, 20), rampMat, [0, 7, 28], [-Math.PI/6, 0, 0]);
-                addObj(new THREE.BoxGeometry(10, 2, 20), rampMat, [0, 7, -28], [Math.PI/6, 0, 0]);
-
-                if (gameSettings.bigMaps) {
-                    for(let i=0; i<16; i++) {
-                        let angle = (i/16)*Math.PI*2;
-                        let r = 80;
-                        addObj(new THREE.BoxGeometry(10, 20, 10), new THREE.MeshStandardMaterial({color: 0x333333}), [Math.cos(angle)*r, 10, Math.sin(angle)*r]);
-                    }
-                }
-
-                addJumpPad([0, 0.25, 20 * mapScale]);
-                addJumpPad([0, 0.25, -20 * mapScale]);
-                addJumpPad([40 * mapScale, 0.25, 0]);
-                addJumpPad([-40 * mapScale, 0.25, 0]);
-            }
-            else if (mapType === "Playground") {
+            if (mapType === "Playground") {
                 scene.background = new THREE.Color(0x87CEEB); 
                 const gridTex = generateProceduralTexture('grid', '#228B22', '#1b6b1b'); gridTex.repeat.set(30 * mapScale, 30 * mapScale);
                 addObj(groundGeo, new THREE.MeshStandardMaterial({map: gridTex}), [0,0,0], [-Math.PI/2,0,0]); 
@@ -978,7 +1295,6 @@
                     addObj(new THREE.CylinderGeometry(2, 2, 25, 16), new THREE.MeshStandardMaterial({color: 0xFF0000}), [40 * mapScale, 12.5, i * 15 * mapScale]);
                 }
 
-                // Add more props for big maps
                 if (gameSettings.bigMaps) {
                     for(let i = 0; i < 20; i++) {
                         addObj(new THREE.BoxGeometry(5, 10 + Math.random() * 20, 5), new THREE.MeshStandardMaterial({color: 0x888888}), 
@@ -990,6 +1306,9 @@
                     }
                 }
 
+                const glassMat = new THREE.MeshPhysicalMaterial({color: 0x88ccff, transmission: 0.9, opacity: 1, transparent: true, roughness: 0.1});
+                const g1 = addObj(new THREE.BoxGeometry(20, 10, 0.5), glassMat, [0, 5, 15 * mapScale]); g1.userData.isGlass = true;
+
                 addJumpPad([25 * mapScale, 0.25, 25 * mapScale]); 
                 addJumpPad([-25 * mapScale, 0.25, -25 * mapScale]);
             } 
@@ -999,7 +1318,10 @@
                 const tileTex = generateProceduralTexture('grid', '#eeeeee', '#cccccc'); tileTex.repeat.set(16 * mapScale, 8 * mapScale);
                 addObj(new THREE.BoxGeometry(160 * mapScale, 2, 80 * mapScale), new THREE.MeshStandardMaterial({map: tileTex}), [0, -1, 0]);
                 
-                addObj(new THREE.BoxGeometry(60 * mapScale, 1, 20), new THREE.MeshPhysicalMaterial({color: 0xddddff, transmission: 0.9, opacity: 1, transparent: true}), [0, 0.5, 0]);
+                const glassMat = new THREE.MeshPhysicalMaterial({color: 0xddddff, transmission: 0.9, opacity: 1, transparent: true, roughness: 0.1});
+                const mainGlass = addObj(new THREE.BoxGeometry(60 * mapScale, 5, 20), glassMat, [0, 2.5, 0]);
+                mainGlass.userData.isGlass = true;
+
                 addObj(new THREE.BoxGeometry(10, 8, 2), new THREE.MeshStandardMaterial({color: 0x333333}), [5 * mapScale, 4, 2]);
                 addObj(new THREE.BoxGeometry(2, 8, 10), new THREE.MeshStandardMaterial({color: 0x333333}), [9 * mapScale, 4, 6]);
                 addObj(new THREE.BoxGeometry(10, 8, 2), new THREE.MeshStandardMaterial({color: 0x333333}), [-5 * mapScale, 4, -2]);
@@ -1010,7 +1332,6 @@
 
                 addObj(new THREE.BoxGeometry(80 * mapScale, 1, 5), new THREE.MeshStandardMaterial({color: 0x888888}), [0, -10, 45 * mapScale]);
 
-                // Big map additions
                 if (gameSettings.bigMaps) {
                     for(let i = 0; i < 30; i++) {
                         addObj(new THREE.BoxGeometry(8, 15 + Math.random() * 25, 8), new THREE.MeshStandardMaterial({color: 0x666666}),
@@ -1047,7 +1368,6 @@
                 addObj(new THREE.BoxGeometry(220 * mapScale, 12, 12), new THREE.MeshStandardMaterial({color: 0xdddd00}), [-20 * mapScale, 234, 0]);
                 addObj(new THREE.CylinderGeometry(0.5, 0.5, 150), new THREE.MeshStandardMaterial({color: 0x111111}), [0, 159, 0]);
                 
-                // Construct Crane Ladder
                 const ladderMat = new THREE.MeshStandardMaterial({color: 0x222222});
                 for(let i=0; i<240; i+=4) {
                     addObj(new THREE.BoxGeometry(4, 0.5, 0.5), ladderMat, [-120 * mapScale, i, 12.5 * mapScale]);
@@ -1056,7 +1376,6 @@
                 addObj(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshStandardMaterial({color: 0xaa0000}), [0, 69, 0]);
                 addObj(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshStandardMaterial({color: 0x880000}), [0, 20, 0]); 
 
-                // Big map additions - more structures
                 if (gameSettings.bigMaps) {
                     for(let i = 0; i < 25; i++) {
                         addObj(new THREE.BoxGeometry(20 + Math.random() * 30, 20 + Math.random() * 40, 20 + Math.random() * 30), new THREE.MeshStandardMaterial({color: 0x666666}),
@@ -1072,11 +1391,14 @@
                 const b5 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [-60 * mapScale, 11, 60 * mapScale]); b5.userData = {isBarrel: true};
                 const b6 = addObj(new THREE.CylinderGeometry(2.5, 2.5, 6, 16), barrelMat, [0, 13, 0]); b6.userData = {isBarrel: true};
 
+                const glassMat = new THREE.MeshPhysicalMaterial({color: 0x88ccff, transmission: 0.9, opacity: 1, transparent: true, roughness: 0.1});
+                const g1 = addObj(new THREE.BoxGeometry(10, 15, 0.5), glassMat, [45 * mapScale, 15, 100 * mapScale]); g1.userData.isGlass = true;
+
                 addJumpPad([30 * mapScale, 10.25, 30 * mapScale]);
                 addJumpPad([-30 * mapScale, 10.25, -30 * mapScale]);
                 addJumpPad([0, 10.25, -45 * mapScale]);
             }
-            else { // Container
+            else { 
                 scene.background = new THREE.Color(0x222222);
                 addObj(groundGeo, new THREE.MeshStandardMaterial({color: 0x444444}), [0,0,0], [-Math.PI/2,0,0]);
 
@@ -1084,7 +1406,6 @@
                 const cGeo = new THREE.BoxGeometry(12, 12, 30 * mapScale);
                 const cMat = new THREE.MeshStandardMaterial({map: ribTex});
                 
-                // Rotated horizontally
                 addObj(cGeo, cMat, [0, 6, -15], [0, Math.PI/2, 0]); 
                 addObj(cGeo, cMat, [0, 18, -15], [0, Math.PI/2, 0]);
                 addObj(cGeo, cMat, [0, 6, 15], [0, Math.PI/2, 0]);  
@@ -1093,7 +1414,6 @@
                 addObj(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshStandardMaterial({color: 0xcccc00}), [-60 * mapScale, 5, -30 * mapScale]);
                 addObj(new THREE.BoxGeometry(16, 10, 16), new THREE.MeshStandardMaterial({color: 0x444444}), [-60 * mapScale, 6, -30 * mapScale]); 
 
-                // Big map additions
                 if (gameSettings.bigMaps) {
                     for(let i = 0; i < 40; i++) {
                         addObj(new THREE.BoxGeometry(15, 8 + Math.random() * 12, 25 + Math.random() * 15), new THREE.MeshStandardMaterial({color: Math.random() > 0.5 ? 0x884400 : 0x448800}),
@@ -1105,7 +1425,7 @@
                 addJumpPad([0, 0.25, -20 * mapScale]);
             }
 
-            if (mapType !== "Construction" && mapType !== "Arena") {
+            if (mapType !== "Construction") {
                 const boundaryMat = new THREE.MeshStandardMaterial({color: 0x303040, roughness: 1.0, flatShading: true});
                 const boundarySize = 160 * mapScale;
                 const boundaryHeight = 100;
@@ -1139,6 +1459,7 @@
                 this.reactionTime = diffSettings.aiReactionTime;
                 this.isSecondary = isSecondary;
                 this.targetPos = new THREE.Vector3(); 
+                this.isDead = false;
                 this.pickNewTarget();
                 
                 this.randomizeLoadout();
@@ -1166,15 +1487,12 @@
             pickNewTarget() { 
                 let range = (selectedMap === "Construction" ? 240 : 80) * (gameSettings.bigMaps ? 2.5 : 1);
                 if (gameSettings.multipleEnemies) {
-                    // In multiple enemies mode, target the player or other AI
                     if (this.isSecondary) {
-                        // Target the first AI (which is the main enemy)
-                        this.targetPos = aiControllers[0] ? aiControllers[0].mesh.position.clone() : controls.getObject().position.clone();
+                        this.targetPos = (aiControllers[0] && !aiControllers[0].isDead) ? aiControllers[0].mesh.position.clone() : controls.getObject().position.clone();
                     } else {
-                        // Either target player or secondary AI
                         this.targetPos = Math.random() > 0.3 
                             ? controls.getObject().position.clone() 
-                            : (aiControllers[1] ? aiControllers[1].mesh.position.clone() : controls.getObject().position.clone());
+                            : ((aiControllers[1] && !aiControllers[1].isDead) ? aiControllers[1].mesh.position.clone() : controls.getObject().position.clone());
                     }
                     this.targetPos.y = 2.5;
                 } else {
@@ -1183,6 +1501,7 @@
             }
 
             takeDamage(amt) {
+                if(this.isDead) return;
                 this.health -= amt; 
                 spawnParticles(this.mesh.position, 10, 'spark', this.isSecondary ? 0xffaa00 : 0xff007f);
                 this.dashCooldown = 0; 
@@ -1190,17 +1509,15 @@
             }
 
             die() {
+                if(this.isDead) return;
+                this.isDead = true;
                 if (this.isSecondary) {
-                    // Secondary enemy died
                     if (!gameSettings.multipleEnemies) {
                         pScore++; 
                         document.getElementById('p-score').innerText = pScore;
                     }
-                    // In multiple enemies mode, if one AI kills another, the killer gets a point
                     if (gameSettings.multipleEnemies) {
-                        // Find who killed this AI and give them a point
                         if (aiControllers[0] === this) {
-                            // First AI died, second AI gets point
                             eScore++; 
                         } else {
                             pScore++;
@@ -1209,9 +1526,7 @@
                         document.getElementById('e-score').innerText = eScore;
                     }
                 } else {
-                    // Primary enemy died
                     if (gameSettings.multipleEnemies && aiControllers[1] && aiControllers[1].health > 0) {
-                        // Secondary AI killed primary, give point to secondary (enemy score)
                         eScore++;
                         document.getElementById('e-score').innerText = eScore;
                     } else {
@@ -1221,25 +1536,36 @@
                 }
                 
                 if(!checkGameEnd()) {
-                    // Respawn in multiple enemies mode
                     if (gameSettings.multipleEnemies) {
-                        this.health = this.maxHealth;
-                        this.stun = 0;
-                        let range = (selectedMap === "Construction" ? 240 : 80) * (gameSettings.bigMaps ? 2.5 : 1);
-                        this.mesh.position.set((Math.random()-0.5)*range, 10, (Math.random()-0.5)*range);
-                        this.pickNewTarget();
-                        this.randomizeLoadout();
+                        setTimeout(() => { this.respawn(); }, 3000);
                     } else {
-                        resetRound();
+                        setTimeout(() => { resetRound(); }, 3000);
                     }
                 }
             }
 
+            respawn() {
+                this.health = this.maxHealth;
+                this.stun = 0;
+                this.isDead = false;
+                this.mesh.rotation.x = 0;
+                let range = (selectedMap === "Construction" ? 240 : 80) * (gameSettings.bigMaps ? 2.5 : 1);
+                this.mesh.position.set((Math.random()-0.5)*range, 10, (Math.random()-0.5)*range);
+                this.pickNewTarget();
+                this.randomizeLoadout();
+            }
+
             update(playerPos, cameraObj, otherAI = null) {
+                if (this.isDead) {
+                    this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, -Math.PI / 2, 0.1);
+                    this.hpUI.style.display = 'none';
+                    return;
+                }
+
                 if (this.stun > 0) {
                     this.stun--;
                     if (this.stun % 5 === 0) spawnParticles(this.mesh.position.clone().add(new THREE.Vector3(0,2,0)), 5, 'spark', 0xffff00);
-                    return; // Prevent actions and movement when stunned
+                    return; 
                 }
 
                 if(this.dashCooldown > 0) this.dashCooldown--;
@@ -1250,9 +1576,8 @@
                     this.takeDamage(this.maxHealth + 100);
                 }
 
-                // Determine target based on mode
                 let targetPos = playerPos;
-                if (gameSettings.multipleEnemies && otherAI) {
+                if (gameSettings.multipleEnemies && otherAI && !otherAI.isDead) {
                     targetPos = otherAI.mesh.position;
                 }
 
@@ -1356,21 +1681,24 @@
 
             shootAtTarget(targetPos, config) {
                 if (config.type === "melee") {
+                    SoundEngine.shoot("melee");
                     weaponGroup.children[0].rotation.x = -1.2; 
                     if (this.mesh.position.distanceTo(targetPos) < 6) {
-                        // Check who the target is
                         if (targetPos === controls.getObject().position) {
                             takePlayerDamage(config.damage, this);
                         } else if (gameSettings.multipleEnemies && aiControllers.length > 0) {
-                            // AI vs AI damage
                             const otherAI = this.isSecondary ? aiControllers[0] : (aiControllers[1] || null);
-                            if (otherAI) otherAI.takeDamage(config.damage);
+                            if (otherAI && !otherAI.isDead) {
+                                SoundEngine.hit(false);
+                                otherAI.takeDamage(config.damage);
+                            }
                         }
                     }
                     setTimeout(() => { if(weaponGroup.children[0]) weaponGroup.children[0].rotation.x = 0; }, 200);
                     return;
                 }
 
+                SoundEngine.shoot(config.type);
                 const bGeo = new THREE.BoxGeometry(0.1, 0.1, 1.2);
                 const bMat = new THREE.MeshBasicMaterial({color: config.color || 0xff0000}); 
                 const b = new THREE.Mesh(bGeo, bMat);
@@ -1409,7 +1737,7 @@
                 const dir = targetPos.clone().sub(this.mesh.position).normalize();
                 mesh.position.copy(this.mesh.position).add(new THREE.Vector3(0,3,0));
                 
-                mesh.userData = { vel: dir.multiplyScalar(20).add(new THREE.Vector3(0, 8, 0)), type: "grenade", name: tactName, config: config, grounded: false, sourceAI: this };
+                mesh.userData = { vel: dir.multiplyScalar(20).add(new THREE.Vector3(0, 8, 0)), type: "grenade", name: tactName, config: config, grounded: false, source: this };
                 scene.add(mesh); throwables.push(mesh);
             }
         }
@@ -1424,13 +1752,25 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
             document.body.appendChild(renderer.domElement);
 
+            composer = new EffectComposer(renderer);
+            const renderPass = new RenderPass(scene, camera);
+            composer.addPass(renderPass);
+            bokehPass = new BokehPass(scene, camera, {
+                focus: 10.0,
+                aperture: 0.0001,
+                maxblur: 0.0,
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+            composer.addPass(bokehPass);
+
             scene.add(new THREE.AmbientLight(0x404040, 0.7));
             const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(100, 100, 50); sun.castShadow = true; scene.add(sun);
 
             buildMap(selectedMap || "Playground");
+            SoundEngine.playAmbience(selectedMap || "Playground");
 
-            // --- NEW ADDITIONS START ---
             muzzleLight = new THREE.PointLight(0xffaa00, 0, 20);
             scene.add(muzzleLight);
             
@@ -1446,7 +1786,6 @@
             
             muzzleSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, blending: THREE.AdditiveBlending, transparent: true, opacity: 0 }));
             scene.add(muzzleSprite);
-            // --- NEW ADDITIONS END ---
 
             controls = new PointerLockControls(camera, document.body); controls.lock();
 
@@ -1459,7 +1798,6 @@
             head.position.y = 2.5; dummy.add(body, head);
             dummy.position.copy(spawnE); scene.add(dummy);
 
-            // Create second enemy for multiple enemies mode
             if (gameSettings.multipleEnemies) {
                 dummy2 = new THREE.Group();
                 const body2 = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 3, 4, 8), new THREE.MeshStandardMaterial({color: 0xffaa00}));
@@ -1495,6 +1833,8 @@
 
             weaponGroup = new THREE.Group(); camera.add(weaponGroup); scene.add(controls.getObject());
             controls.getObject().position.copy(spawnP); 
+
+            lastMomentumTick = performance.now();
 
             setInterval(() => {
                 if(matchTimeRemaining > 0 && !isGameOver) {
@@ -1533,7 +1873,22 @@
                 if(e.code === 'KeyW') moveFwd = true; if(e.code === 'KeyS') moveBwd = true;
                 if(e.code === 'KeyA') moveL = true; if(e.code === 'KeyD') moveR = true;
                 
-                if(e.code === 'KeyZ') isProne = !isProne;
+                // LOWER HITBOX (Prone) temporarily
+                if(e.code === 'KeyZ') isProne = true;
+
+                // AIM DOWN SIGHTS
+                if(e.code === 'KeyQ') {
+                    if (selectedItems[activeWeaponIndex] !== "OBS" && activeWeaponIndex !== 2) {
+                        isScoping = true;
+                    }
+                }
+
+                // LEDGE HANG
+                if(e.code === 'KeyE') {
+                    if (canVault) {
+                        isHanging = true;
+                    }
+                }
 
                 if(e.code === 'ShiftLeft') isSprintingState = true;
 
@@ -1554,32 +1909,40 @@
                     }
                 }
                 
-                if(e.code === 'Space' && isGrounded) {
-                    velocity.y += isSliding ? 55 : 35; 
-                    if(isSliding) {
-                        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
-                        forward.y = 0; forward.normalize();
-                        velocity.add(forward.multiplyScalar(80)); 
+                if(e.code === 'Space') {
+                    if (isHanging) {
+                        isHanging = false;
+                        velocity.y = 40;
+                        velocity.add(vaultDir.clone().multiplyScalar(30));
+                    } else if(isGrounded) {
+                        velocity.y += isSliding ? 55 : 35; 
+                        if(isSliding) {
+                            const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+                            forward.y = 0; forward.normalize();
+                            velocity.add(forward.multiplyScalar(80)); 
+                        }
                     }
                 }
 
                 if(e.code === 'KeyR') reload();
                 if(['1','2','3','4'].includes(e.key)) { activeWeaponIndex = parseInt(e.key) - 1; isScoping = false; updateWeaponModel(); updateAmmoUI(); }
             };
+
             window.onkeyup = (e) => {
                 if(e.code === 'KeyW') moveFwd = false; if(e.code === 'KeyS') moveBwd = false;
                 if(e.code === 'KeyA') moveL = false; if(e.code === 'KeyD') moveR = false;
                 if(e.code === 'ShiftLeft') isSprintingState = false;
                 if(e.code === 'ControlLeft') isSliding = false;
+                if(e.code === 'KeyZ') isProne = false;
+                if(e.code === 'KeyQ') isScoping = false;
             };
+
             window.onmousedown = (e) => { 
                 if(!controls.isLocked) return;
-
                 if(e.button === 0) {
                     isShooting = true;
                     shoot(); 
                 }
-                
                 if(e.button === 2) {
                     if (selectedItems[activeWeaponIndex] === "OBS") {
                         stunEnemies(300);
@@ -1598,14 +1961,11 @@
                                 spawnTNT(center.clone().add(offset), true);
                             }
                         }
-                    } else if(activeWeaponIndex === 0 || activeWeaponIndex === 1) {
-                        isScoping = true;
                     }
                 }
             };
             window.onmouseup = (e) => { 
                 if(e.button === 0) isShooting = false; 
-                if(e.button === 2) isScoping = false; 
             };
 
             window.addEventListener('mousemove', (e) => {
@@ -1706,34 +2066,30 @@
 
         function spawnParticles(pos, count, type, color) { for(let i=0; i<count; i++) particles.push(new Particle(pos, type, color)); }
 
-        // --- NEW ADDITIONS START ---
         function detonateRocket(pos) {
             spawnParticles(pos, 30, 'fire', 0xff6600);
             spawnParticles(pos, 20, 'smoke', 0x333333);
             const explosionLight = new THREE.PointLight(0xff6600, 30, 300); 
             explosionLight.position.copy(pos); scene.add(explosionLight);
             
-            // Note: Changed from 'fire' to 'rpg_explosion' to avoid player taking AoE damage
-            activeAOEs.push({ pos: pos, type: 'rpg_explosion', color: 0xff6600, life: 15, light: explosionLight, damage: 200, radius: 40 });
+            activeAOEs.push({ pos: pos, type: 'rpg_explosion', color: 0xff6600, life: 15, light: explosionLight, damage: 200, radius: 40, source: 'player' });
             currentSway.x += (Math.random() - 0.5) * 0.5;
             currentSway.y += (Math.random() - 0.5) * 0.5;
 
-            // ROCKET JUMP LOGIC
             let dist = controls.getObject().position.distanceTo(pos);
             if (dist < 25) {
                 let force = (25 - dist) / 25;
-                velocity.y = Math.max(velocity.y, 0); // cancels falling downward momentum
-                velocity.y += 60 * force; // launches you up!
+                velocity.y = Math.max(velocity.y, 0); 
+                velocity.y += 60 * force; 
                 let pushDir = controls.getObject().position.clone().sub(pos).normalize();
                 pushDir.y = 0; 
-                velocity.add(pushDir.multiplyScalar(80 * force)); // knocks you backwards away from explosion
+                velocity.add(pushDir.multiplyScalar(80 * force)); 
             }
         }
-        // --- NEW ADDITIONS END ---
 
         async function shoot() {
             const name = selectedItems[activeWeaponIndex]; const config = WEAPON_CONFIG[name];
-            if(!canShoot || isReloading || !config || isGameOver || isKillCam) return;
+            if(!canShoot || isReloading || !config || isGameOver || isKillCam || isSpectating) return;
 
             if (activeWeaponIndex === 2) { useTactical(name, config); return; }
 
@@ -1741,6 +2097,7 @@
 
             if (config.type === "obs") {
                 canShoot = false;
+                SoundEngine.shoot("obs");
                 stunEnemies(300);
                 const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
                 
@@ -1748,7 +2105,6 @@
                 let hits = bulletRaycaster.intersectObjects(mapColliders);
                 let center = hits.length > 0 ? hits[0].point : camera.position.clone().add(dir.multiplyScalar(100));
 
-                // --- NEW ADDITIONS START (OBS Ring & Beam Effect) ---
                 const beamGeo = new THREE.CylinderGeometry(5, 5, 1000, 32);
                 const beamMat = new THREE.MeshBasicMaterial({color: 0xffdd00, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, side: THREE.DoubleSide});
                 const beam = new THREE.Mesh(beamGeo, beamMat);
@@ -1778,9 +2134,9 @@
                     damage: 100, 
                     radius: 80,
                     beamMesh: beam,
-                    ringMesh: ring
+                    ringMesh: ring,
+                    source: 'player'
                 });
-                // --- NEW ADDITIONS END ---
 
                 for (let r = 1; r <= 2; r++) {
                     let ringRadius = r * 12;
@@ -1788,7 +2144,7 @@
                     for(let i=0; i<tntCount; i++) {
                         let angle = (i / tntCount) * Math.PI * 2;
                         let offset = new THREE.Vector3(Math.cos(angle)*ringRadius, 20 + r*10, Math.sin(angle)*ringRadius);
-                        spawnTNT(center.clone().add(offset), false);
+                        spawnTNT(center.clone().add(offset), false, 'player');
                     }
                 }
 
@@ -1798,8 +2154,15 @@
             }
 
             if (config.type === "rpg") {
-                if (ammoState[activeWeaponIndex] <= 0) { reload(); return; } ammoState[activeWeaponIndex]--;
+                if (ammoState[activeWeaponIndex] <= 0) { reload(); return; } 
+                ammoState[activeWeaponIndex]--;
+                
+                if (gameSettings.autoReload && ammoState[activeWeaponIndex] === 0 && !isReloading) {
+                    setTimeout(() => reload(), 100);
+                }
+                
                 canShoot = false;
+                SoundEngine.shoot("rpg");
                 
                 const b = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8), new THREE.MeshStandardMaterial({color: 0x222222}));
                 const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
@@ -1817,25 +2180,34 @@
 
             if (config.type === "melee") {
                 canShoot = false; weaponGroup.children[0].rotation.x = -1.2;
+                SoundEngine.shoot("melee");
                 if (targetObj && controls.getObject().position.distanceTo(targetObj.position) < 8) {
+                    SoundEngine.hit(false);
                     damageTexts.push(new DamageNumber(targetObj.position.clone().add(new THREE.Vector3(0,2,0)), config.damage)); 
                     if (isMultiplayer) {
                         if (peerConn && peerConn.open) peerConn.send({ type: 'hit', damage: config.damage });
                     } else {
-                        aiControllers.forEach(ai => { if(ai && ai.mesh === targetObj) ai.takeDamage(config.damage); });
+                        aiControllers.forEach(ai => { if(ai && ai.mesh === targetObj && !ai.isDead) ai.takeDamage(config.damage); });
                     }
                 }
                 setTimeout(() => { weaponGroup.children[0].rotation.x = 0; canShoot = true; }, 1000 * (60 / config.rpm)); return;
             }
 
-            if (config.type !== "laser") { if (ammoState[activeWeaponIndex] <= 0) { reload(); return; } ammoState[activeWeaponIndex]--; }
+            if (config.type !== "laser") { 
+                if (ammoState[activeWeaponIndex] <= 0) { reload(); return; } 
+                ammoState[activeWeaponIndex]--; 
+                
+                if (gameSettings.autoReload && ammoState[activeWeaponIndex] === 0 && !isReloading) {
+                    setTimeout(() => reload(), 100);
+                }
+            }
             if (config.type === "laser") { if (laserHeat >= 100) return; laserHeat += 15; }
 
             canShoot = false; const shots = config.type === "burst" ? 3 : 1;
             for(let i=0; i<shots; i++) {
                 spawnBullet(config.damage); weaponGroup.position.z += 0.1;
+                SoundEngine.shoot(config.type);
                 
-                // --- NEW ADDITIONS START ---
                 let kickAmt = config.kick || (config.type === "auto" ? 0.02 : 0.04);
                 targetRecoil += kickAmt;
 
@@ -1866,7 +2238,6 @@
                     scene.add(shell);
                     shells.push(shell);
                 }
-                // --- NEW ADDITIONS END ---
 
                 if(config.kick) velocity.z += config.kick * 10;
                 if(shots > 1) await new Promise(r => setTimeout(r, 80));
@@ -1894,7 +2265,7 @@
         function spawnThrowable(name, config) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshStandardMaterial({color: config.color}));
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir); mesh.position.copy(camera.position).add(dir);
-            mesh.userData = { vel: dir.clone().multiplyScalar(25).add(new THREE.Vector3(0, 5, 0)), type: "grenade", config: config, name: name, grounded: false };
+            mesh.userData = { vel: dir.clone().multiplyScalar(25).add(new THREE.Vector3(0, 5, 0)), type: "grenade", config: config, name: name, grounded: false, source: 'player' };
             scene.add(mesh); throwables.push(mesh);
             
             if (isMultiplayer && peerConn && peerConn.open) {
@@ -1902,7 +2273,7 @@
             }
         }
 
-        function spawnTNT(pos, explodeOnImpact) {
+        function spawnTNT(pos, explodeOnImpact, sourceOwner) {
             const tntMat = new THREE.MeshStandardMaterial({color: 0xff3333});
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), tntMat);
             mesh.position.copy(pos);
@@ -1911,7 +2282,8 @@
                 type: "tnt", 
                 grounded: false,
                 explodeOnImpact: explodeOnImpact,
-                life: 60 
+                life: 60,
+                source: sourceOwner 
             };
             scene.add(mesh);
             throwables.push(mesh);
@@ -1919,7 +2291,10 @@
 
         function detonateTNT(t) {
             const pos = t.position.clone();
+            const source = t.userData.source;
             scene.remove(t);
+            
+            SoundEngine.explode();
             
             spawnParticles(pos, 15, 'fire', 0xffaa00);
             spawnParticles(pos, 10, 'smoke', 0x555555);
@@ -1933,7 +2308,7 @@
                 scene.add(light);
             }
             
-            activeAOEs.push({ pos, type: 'fire', color: 0xffaa00, life: 20, light: light, damage: 1500, radius: 80 });
+            activeAOEs.push({ pos, type: 'fire', color: 0xffaa00, life: 20, light: light, damage: 1500, radius: 80, source: source });
 
             currentSway.x += (Math.random() - 0.5) * 0.8;
             currentSway.y += (Math.random() - 0.5) * 0.8;
@@ -1941,17 +2316,18 @@
 
         function detonate(obj) {
             const name = obj.userData.name; const config = obj.userData.config || {aoeDmg: 15, radius: 15}; const pos = obj.position.clone();
+            const sourceOwner = obj.userData.source;
             if (name === "Molotov" || name === "Enemy-Fire") {
                 const fireLight = new THREE.PointLight(0xff4400, 15, 200); fireLight.position.copy(pos); scene.add(fireLight);
-                activeAOEs.push({ pos, type: 'fire', color: 0xff4400, life: 30 * 60, light: fireLight, damage: config.aoeDmg, radius: config.radius || 15 });
+                activeAOEs.push({ pos, type: 'fire', color: 0xff4400, life: 30 * 60, light: fireLight, damage: config.aoeDmg, radius: config.radius || 15, source: sourceOwner });
             } 
             else if (name === "Flare Gun") {
                 const flareLight = new THREE.PointLight(0xff0000, 20, 250); flareLight.position.copy(pos); scene.add(flareLight);
-                activeAOEs.push({ pos, type: 'flare_core', color: 0xff0000, life: 30 * 60, light: flareLight, damage: config.aoeDmg, radius: config.radius || 20 });
+                activeAOEs.push({ pos, type: 'flare_core', color: 0xff0000, life: 30 * 60, light: flareLight, damage: config.aoeDmg, radius: config.radius || 20, source: sourceOwner });
             }
             else if (name === "Flashbang") {
                 spawnParticles(pos, 30, 'spark', 0xffffff);
-                if (pos.distanceTo(controls.getObject().position) < 60) { 
+                if (sourceOwner !== 'player' && pos.distanceTo(controls.getObject().position) < 60) { 
                     const overlay = document.getElementById('flash-overlay'); overlay.style.opacity = 1; overlay.style.transition = 'opacity 0.05s';
                     setTimeout(() => { overlay.style.transition = 'opacity 3s'; overlay.style.opacity = 0; }, 100);
                 }
@@ -1960,7 +2336,7 @@
             else if (name === "Shock Trap") {
                 spawnParticles(pos, 50, 'spark', 0x00ffff);
                 const light = new THREE.PointLight(0x00ffff, 5, 200); light.position.copy(pos); scene.add(light);
-                activeAOEs.push({ pos, type: 'spark', color: 0x00ffff, life: 5 * 60, light: light, damage: config.aoeDmg, radius: config.radius || 12 });
+                activeAOEs.push({ pos, type: 'spark', color: 0x00ffff, life: 5 * 60, light: light, damage: config.aoeDmg, radius: config.radius || 12, source: sourceOwner });
             }
             else if (name === "Decoy Grenade") { spawnParticles(pos, 30, 'spark', 0xffaa00); }
             scene.remove(obj);
@@ -2007,8 +2383,12 @@
             scene.add(b); enemyBullets.push(b);
         }
 
-        function takePlayerDamage(amt, source) {
-            if (isGameOver || isKillCam) return;
+        function takePlayerDamage(amt, source, isHeadshot = false) {
+            if (isGameOver || isKillCam || isSpectating) return;
+
+            SoundEngine.hit(isHeadshot);
+            momentumStacks = 0;
+            lastMomentumTick = performance.now();
 
             health -= amt; 
             updateBloodUI();
@@ -2022,15 +2402,24 @@
                 }
                 
                 if(!checkGameEnd()) {
-                    isKillCam = true;
-                    killCamTarget = source ? (source.mesh || source) : (aiControllers[0] ? aiControllers[0].mesh : dummy);
-                    killCamAngle = 0;
-                    weaponGroup.visible = false;
-                    
-                    setTimeout(() => {
-                        weaponGroup.visible = true;
-                        resetRound();
-                    }, 3000);
+                    if (isMultiplayer) {
+                        isSpectating = true;
+                        weaponGroup.visible = false;
+                        document.getElementById('round-announcement').innerHTML = "YOU DIED<br><span style='font-size:1.5rem;color:#ccc;'>SPECTATOR FREECAM (WASD)</span>";
+                        document.getElementById('round-announcement').style.opacity = 1;
+                        setTimeout(() => {
+                            resetRound();
+                        }, 10000);
+                    } else {
+                        isKillCam = true;
+                        killCamTarget = source ? (source.mesh || source) : (aiControllers[0] ? aiControllers[0].mesh : dummy);
+                        killCamAngle = 0;
+                        weaponGroup.visible = false;
+                        
+                        setTimeout(() => {
+                            resetRound();
+                        }, 3000);
+                    }
                 } 
             }
         }
@@ -2040,7 +2429,7 @@
             requestAnimationFrame(animate);
             if (isGameOver) return; 
 
-            if (isShooting && canShoot && !isReloading && !isKillCam) {
+            if (isShooting && canShoot && !isReloading && !isKillCam && !isSpectating) {
                 const config = WEAPON_CONFIG[selectedItems[activeWeaponIndex]];
                 if (config && (config.type === "auto" || config.type === "laser")) {
                     shoot();
@@ -2050,11 +2439,28 @@
             const time = performance.now(); const delta = 0.016;
             frameCount++;
 
-            // Update all AI controllers
+            // Momentum Perk Logic
+            if (selectedItems[4] === "Momentum") {
+                if (time - lastMomentumTick > 5000) {
+                    momentumStacks = Math.min(10, momentumStacks + 1);
+                    lastMomentumTick = time;
+                }
+            } else {
+                momentumStacks = 0;
+            }
+
+            // Footstep SFX Logic
+            if (isGrounded && (moveFwd || moveBwd || moveL || moveR) && !isSliding) {
+                let stepInterval = isSprintingState ? 300 : 500;
+                if (time - lastStepTime > stepInterval) {
+                    SoundEngine.step();
+                    lastStepTime = time;
+                }
+            }
+
             aiControllers.forEach(ai => {
                 if (ai) {
                     if (gameSettings.multipleEnemies && aiControllers.length >= 2) {
-                        // In multiple enemies mode, pass the other AI as target
                         const otherAI = ai === aiControllers[0] ? aiControllers[1] : aiControllers[0];
                         ai.update(controls.getObject().position, camera, otherAI);
                     } else {
@@ -2063,7 +2469,6 @@
                 }
             });
 
-            // UPDATE WEAPON SWAY
             targetSway.lerp(new THREE.Vector2(0,0), 0.05);
             currentSway.lerp(targetSway, 0.1);
             if (weaponGroup.children.length > 0) {
@@ -2072,131 +2477,165 @@
             }
 
             if (controls.isLocked && !isKillCam) {
-                velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 12.0 * delta; 
-                direction.z = Number(moveFwd) - Number(moveBwd); direction.x = Number(moveR) - Number(moveL); direction.normalize();
-
-                let baseSpeed = isProne ? 150 : ((isSliding && isGrounded) ? 900 : (isWallRunning ? 700 : (isSprintingState && moveFwd ? 800 : 500))); 
-                let weightMult = WEAPON_CONFIG[selectedItems[activeWeaponIndex]]?.weight || 1.0;
-                let speed = baseSpeed * weightMult;
-
-                if (moveFwd || moveBwd) velocity.z -= direction.z * speed * delta;
-                if (moveL || moveR) velocity.x -= direction.x * speed * delta;
-
-                controls.moveRight(-velocity.x * delta); 
-                controls.moveForward(-velocity.z * delta); 
-                controls.getObject().position.y += (velocity.y * delta);
-
-                if (controls.getObject().position.y < -50) {
-                    takePlayerDamage(maxHealth + 100, null);
-                    velocity.y = 0;
-                    
-                    let respawnPos = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : new THREE.Vector3(0, 10, 40);
-                    controls.getObject().position.copy(respawnPos);
-                }
-
-                // CRANE LADDER LOGIC
-                if (selectedMap === "Construction") {
-                    let dx = controls.getObject().position.x - (-120);
-                    let dz = controls.getObject().position.z - 12.5;
-                    if (dx*dx + dz*dz < 20 && moveFwd) {
-                        velocity.y = 40; 
-                        isGrounded = true; 
-                    }
-                }
-
-                // --- WALL RUNNING ---
-                isWallRunning = false;
-                if (!isGrounded && moveFwd && !isProne) {
-                    const leftDir = new THREE.Vector3(-1,0,0).applyQuaternion(camera.quaternion);
-                    const rightDir = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
-                    bulletRaycaster.set(controls.getObject().position, leftDir);
-                    let leftHit = bulletRaycaster.intersectObjects(mapColliders);
-                    bulletRaycaster.set(controls.getObject().position, rightDir);
-                    let rightHit = bulletRaycaster.intersectObjects(mapColliders);
-                    
-                    if ((leftHit.length > 0 && leftHit[0].distance < 2.0) || (rightHit.length > 0 && rightHit[0].distance < 2.0)) {
-                        isWallRunning = true;
-                        velocity.y = Math.max(-10, velocity.y);
-                    }
-                }
-
-                // --- EDGE MANTLE ---
-                if (!isGrounded && velocity.y <= 0 && moveFwd && !isProne && !isWallRunning) {
-                    const fwdDir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
-                    fwdDir.y = 0; fwdDir.normalize();
-                    
-                    bulletRaycaster.set(controls.getObject().position, fwdDir);
-                    let chestHit = bulletRaycaster.intersectObjects(mapColliders);
-                    
-                    let headPos = controls.getObject().position.clone().add(new THREE.Vector3(0, 2.5, 0));
-                    bulletRaycaster.set(headPos, fwdDir);
-                    let headHit = bulletRaycaster.intersectObjects(mapColliders);
-                    
-                    if (chestHit.length > 0 && chestHit[0].distance < 2.0 && (headHit.length === 0 || headHit[0].distance > 2.0)) {
-                        velocity.y = 40; 
-                        velocity.add(fwdDir.multiplyScalar(30)); 
-                    }
-                }
-
-                // --- JUMP PADS ---
-                jumpPads.forEach(pad => {
-                    let dx = controls.getObject().position.x - pad.position.x;
-                    let dz = controls.getObject().position.z - pad.position.z;
-                    let dy = controls.getObject().position.y - pad.position.y;
-                    if (dx*dx + dz*dz < 25 && dy > 0 && dy < 10 && velocity.y <= 0) {
-                        velocity.y = 120; 
-                        isGrounded = false;
-                        spawnParticles(pad.position, 15, 'spark', 0x00ffcc);
-                    }
-                });
-
-                const pOrigin = controls.getObject().position.clone();
-                bulletRaycaster.set(new THREE.Vector3(pOrigin.x, pOrigin.y, pOrigin.z), new THREE.Vector3(0, -1, 0));
-                let gHits = bulletRaycaster.intersectObjects(mapColliders);
                 
-                let floorY = -1000; 
-                let playerHeight = isProne ? 1.5 : (isSliding ? 2.5 : 5); 
-                
-                if (gHits.length > 0 && gHits[0].distance < 15) {
-                    floorY = gHits[0].point.y + playerHeight; 
-                }
+                if (isSpectating) {
+                    let specSpeed = 50;
+                    const flyDir = new THREE.Vector3();
+                    camera.getWorldDirection(flyDir);
+                    
+                    if (moveFwd) controls.getObject().position.add(flyDir.clone().multiplyScalar(specSpeed * delta));
+                    if (moveBwd) controls.getObject().position.add(flyDir.clone().multiplyScalar(-specSpeed * delta));
+                    if (moveR) controls.moveRight(specSpeed * delta);
+                    if (moveL) controls.moveRight(-specSpeed * delta);
+                    if (isSprintingState) controls.getObject().position.y -= specSpeed * delta; 
+                    if (isSliding) controls.getObject().position.y -= specSpeed * delta; 
+                    
+                } else {
+                    let prevVy = velocity.y;
+                    let wasGrounded = isGrounded;
 
-                if (controls.getObject().position.y <= floorY && floorY !== -1000) { 
-                    velocity.y = Math.max(0, velocity.y); 
-                    controls.getObject().position.y = floorY; 
-                    isGrounded = true; 
-                } else { 
-                    isGrounded = false; 
-                }
+                    if (isHanging) {
+                        velocity.set(0,0,0); 
+                        prevVy = 0;
+                    } else {
+                        velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= 9.8 * 12.0 * delta; 
+                    }
 
-                const hOrigin = new THREE.Vector3(controls.getObject().position.x, controls.getObject().position.y - 2.5, controls.getObject().position.z);
-                const hDirs = [
-                    new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0), 
-                    new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1),
-                    new THREE.Vector3(1,0,1).normalize(), new THREE.Vector3(-1,0,1).normalize(),
-                    new THREE.Vector3(1,0,-1).normalize(), new THREE.Vector3(-1,0,-1).normalize()
-                ];
-                
-                for (let dir of hDirs) {
-                    bulletRaycaster.set(hOrigin, dir);
-                    let hits = bulletRaycaster.intersectObjects(mapColliders);
-                    if (hits.length > 0 && hits[0].distance < 1.5) {
-                        if (Math.abs(hits[0].face.normal.y) < 0.6) {
-                            let overlap = 1.5 - hits[0].distance;
-                            controls.getObject().position.x += hits[0].face.normal.x * overlap;
-                            controls.getObject().position.z += hits[0].face.normal.z * overlap;
+                    direction.z = Number(moveFwd) - Number(moveBwd); direction.x = Number(moveR) - Number(moveL); direction.normalize();
 
-                            if (velocity.x * hits[0].face.normal.x < 0) velocity.x = 0;
-                            if (velocity.z * hits[0].face.normal.z < 0) velocity.z = 0;
+                    let baseSpeed = isProne ? 150 : ((isSliding && isGrounded) ? 900 : (isWallRunning ? 700 : (isSprintingState && moveFwd ? 800 : 500))); 
+                    let weightMult = WEAPON_CONFIG[selectedItems[activeWeaponIndex]]?.weight || 1.0;
+                    let momentumMult = (selectedItems[4] === "Momentum") ? (1 + (momentumStacks * 0.02)) : 1.0;
+                    let speed = baseSpeed * weightMult * momentumMult;
+
+                    if (!isHanging) {
+                        if (moveFwd || moveBwd) velocity.z -= direction.z * speed * delta;
+                        if (moveL || moveR) velocity.x -= direction.x * speed * delta;
+                    }
+
+                    controls.moveRight(-velocity.x * delta); 
+                    controls.moveForward(-velocity.z * delta); 
+                    controls.getObject().position.y += (velocity.y * delta);
+
+                    if (controls.getObject().position.y < -50) {
+                        takePlayerDamage(maxHealth + 100, null, false);
+                        velocity.y = 0;
+                        
+                        let respawnPos = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : new THREE.Vector3(0, 10, 40);
+                        controls.getObject().position.copy(respawnPos);
+                    }
+
+                    if (selectedMap === "Construction") {
+                        let dx = controls.getObject().position.x - (-120);
+                        let dz = controls.getObject().position.z - 12.5;
+                        if (dx*dx + dz*dz < 20 && moveFwd) {
+                            velocity.y = 40; 
+                            isGrounded = true; 
                         }
                     }
-                }
 
-                if (isMultiplayer && peerConn && peerConn.open && frameCount % 2 === 0) {
-                    peerConn.send({ type: 'state', pos: controls.getObject().position, rotY: camera.rotation.y });
+                    isWallRunning = false;
+                    if (!isGrounded && moveFwd && !isProne && !isHanging) {
+                        const leftDir = new THREE.Vector3(-1,0,0).applyQuaternion(camera.quaternion);
+                        const rightDir = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+                        bulletRaycaster.set(controls.getObject().position, leftDir);
+                        let leftHit = bulletRaycaster.intersectObjects(mapColliders);
+                        bulletRaycaster.set(controls.getObject().position, rightDir);
+                        let rightHit = bulletRaycaster.intersectObjects(mapColliders);
+                        
+                        if ((leftHit.length > 0 && leftHit[0].distance < 2.0) || (rightHit.length > 0 && rightHit[0].distance < 2.0)) {
+                            isWallRunning = true;
+                            velocity.y = Math.max(-10, velocity.y);
+                        }
+                    }
+
+                    // --- EDGE CHECK (For Hang/Vault) ---
+                    canVault = false;
+                    if (!isGrounded && velocity.y <= 0 && moveFwd && !isProne && !isWallRunning && !isHanging) {
+                        const fwdDir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+                        fwdDir.y = 0; fwdDir.normalize();
+                        
+                        bulletRaycaster.set(controls.getObject().position, fwdDir);
+                        let chestHit = bulletRaycaster.intersectObjects(mapColliders);
+                        
+                        let headPos = controls.getObject().position.clone().add(new THREE.Vector3(0, 2.5, 0));
+                        bulletRaycaster.set(headPos, fwdDir);
+                        let headHit = bulletRaycaster.intersectObjects(mapColliders);
+                        
+                        if (chestHit.length > 0 && chestHit[0].distance < 2.0 && (headHit.length === 0 || headHit[0].distance > 2.0)) {
+                            canVault = true;
+                            vaultDir.copy(fwdDir);
+                        }
+                    }
+
+                    if (!isHanging) {
+                        jumpPads.forEach(pad => {
+                            let dx = controls.getObject().position.x - pad.position.x;
+                            let dz = controls.getObject().position.z - pad.position.z;
+                            let dy = controls.getObject().position.y - pad.position.y;
+                            if (dx*dx + dz*dz < 25 && dy > 0 && dy < 10 && velocity.y <= 0) {
+                                velocity.y = 120; 
+                                isGrounded = false;
+                                spawnParticles(pad.position, 15, 'spark', 0x00ffcc);
+                            }
+                        });
+                    }
+
+                    const pOrigin = controls.getObject().position.clone();
+                    bulletRaycaster.set(new THREE.Vector3(pOrigin.x, pOrigin.y, pOrigin.z), new THREE.Vector3(0, -1, 0));
+                    let gHits = bulletRaycaster.intersectObjects(mapColliders);
+                    
+                    let floorY = -1000; 
+                    let playerHeight = isProne ? 1.5 : (isSliding ? 2.5 : 5); 
+                    
+                    if (gHits.length > 0 && gHits[0].distance < 15) {
+                        floorY = gHits[0].point.y + playerHeight; 
+                    }
+
+                    if (!isHanging) {
+                        if (controls.getObject().position.y <= floorY && floorY !== -1000) { 
+                            velocity.y = Math.max(0, velocity.y); 
+                            controls.getObject().position.y = floorY; 
+                            isGrounded = true; 
+                            if (!wasGrounded && prevVy < -40) {
+                                let fallDmg = Math.floor(Math.abs(prevVy) - 40) * 1.5;
+                                if (fallDmg > 5) takePlayerDamage(fallDmg, null, false);
+                            }
+                        } else { 
+                            isGrounded = false; 
+                        }
+                    } else {
+                        isGrounded = false;
+                    }
+
+                    const hOrigin = new THREE.Vector3(controls.getObject().position.x, controls.getObject().position.y - 2.5, controls.getObject().position.z);
+                    const hDirs = [
+                        new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0), 
+                        new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1),
+                        new THREE.Vector3(1,0,1).normalize(), new THREE.Vector3(-1,0,1).normalize(),
+                        new THREE.Vector3(1,0,-1).normalize(), new THREE.Vector3(-1,0,-1).normalize()
+                    ];
+                    
+                    for (let dir of hDirs) {
+                        bulletRaycaster.set(hOrigin, dir);
+                        let hits = bulletRaycaster.intersectObjects(mapColliders);
+                        if (hits.length > 0 && hits[0].distance < 1.5) {
+                            if (Math.abs(hits[0].face.normal.y) < 0.6) {
+                                let overlap = 1.5 - hits[0].distance;
+                                controls.getObject().position.x += hits[0].face.normal.x * overlap;
+                                controls.getObject().position.z += hits[0].face.normal.z * overlap;
+
+                                if (velocity.x * hits[0].face.normal.x < 0) velocity.x = 0;
+                                if (velocity.z * hits[0].face.normal.z < 0) velocity.z = 0;
+                            }
+                        }
+                    }
+
+                    if (isMultiplayer && peerConn && peerConn.open && frameCount % 2 === 0) {
+                        peerConn.send({ type: 'state', pos: controls.getObject().position, rotY: camera.rotation.y });
+                    }
                 }
             } else if (isKillCam && killCamTarget) {
-                // Orbit Camera Logic
                 killCamAngle += 0.02;
                 const camDist = 12;
                 controls.getObject().position.x = killCamTarget.position.x + Math.cos(killCamAngle) * camDist;
@@ -2225,7 +2664,11 @@
 
                     if (hits[0].object.userData.isBarrel) {
                         detonateBarrel(hits[0].object);
+                    } else if (hits[0].object.userData.isGlass) {
+                        shatterGlass(hits[0].object);
+                        scene.remove(b); bullets.splice(i, 1); continue;
                     } else {
+                        SoundEngine.wallHit();
                         spawnParticles(hits[0].point, 3, 'spark', 0xaaaaaa);
                         
                         if (b.userData.perk === "Rebound" && !b.userData.hasRebounded && Math.random() < 0.55) {
@@ -2242,17 +2685,28 @@
                 b.position.add(b.userData.velocity); 
                 if (b.userData.type !== "rocket") b.scale.z = 3.5; 
 
-                // Check collision with all AI enemies
                 let hitAny = false;
                 aiControllers.forEach(ai => {
-                    if(ai && b.position.distanceTo(ai.mesh.position) < (b.userData.type === "rocket" ? 5.0 : 3.5)) {
+                    if(ai && !ai.isDead && b.position.distanceTo(ai.mesh.position) < (b.userData.type === "rocket" ? 5.0 : 3.5)) {
                         if (b.userData.type === "rocket") {
                             detonateRocket(b.position);
                             hitAny = true;
                         } else {
                             let isHeadshot = (b.position.y - ai.mesh.position.y) >= 1.8;
+                            SoundEngine.hit(isHeadshot);
                             let finalDmg = b.userData.damage;
                             
+                            // Point Blank Logic 
+                            let dist = b.position.distanceTo(camera.position); 
+                            if (b.userData.perk === "Point Blank") {
+                                if (dist <= 5) {
+                                    finalDmg *= 1.15; 
+                                } else {
+                                    let dropoffFactor = (dist - 5) * 0.04; 
+                                    finalDmg = finalDmg * Math.max(0.1, 1.0 - dropoffFactor);
+                                }
+                            }
+
                             if (b.userData.perk === "Head-Hunter") {
                                 finalDmg = isHeadshot ? finalDmg * 2.0 : finalDmg * 0.5; 
                             } else {
@@ -2281,7 +2735,11 @@
                 if (hits.length > 0 && hits[0].distance < b.userData.velocity.length()) {
                     if (hits[0].object.userData.isBarrel) {
                         detonateBarrel(hits[0].object);
+                    } else if (hits[0].object.userData.isGlass) {
+                        shatterGlass(hits[0].object);
+                        scene.remove(b); enemyBullets.splice(i, 1); continue;
                     } else {
+                        SoundEngine.wallHit();
                         spawnParticles(hits[0].point, 3, 'spark', 0xaaaaaa);
 
                         if (b.userData.perk === "Rebound" && !b.userData.hasRebounded && Math.random() < 0.55) {
@@ -2303,13 +2761,24 @@
                     let isHeadshotPlayer = b.position.y > headshotThreshold;
                     let finalDmg = b.userData.damage;
                     
+                    // Point Blank Logic for Enemies
+                    let dist = b.position.distanceTo(b.userData.sourceAI ? b.userData.sourceAI.mesh.position : new THREE.Vector3(0,0,0));
+                    if (b.userData.perk === "Point Blank") {
+                        if (dist <= 5) {
+                            finalDmg *= 1.15;
+                        } else {
+                            let dropoffFactor = (dist - 5) * 0.04;
+                            finalDmg = finalDmg * Math.max(0.1, 1.0 - dropoffFactor);
+                        }
+                    }
+
                     if (b.userData.perk === "Head-Hunter") {
                         finalDmg = isHeadshotPlayer ? finalDmg * 2.0 : finalDmg * 0.5;
                     } else {
                         finalDmg = isHeadshotPlayer ? finalDmg * 1.5 : finalDmg;
                     }
                     
-                    takePlayerDamage(finalDmg, b.userData.sourceAI);
+                    takePlayerDamage(finalDmg, b.userData.sourceAI, isHeadshotPlayer);
                     scene.remove(b); enemyBullets.splice(i, 1); continue;
                 }
                 
@@ -2319,7 +2788,6 @@
             for(let i = activeAOEs.length - 1; i >= 0; i--) {
                 const aoe = activeAOEs[i];
                 
-                // --- NEW ADDITIONS START (OBS Effects Updates) ---
                 if (aoe.type === 'obs_strike') {
                     if (aoe.beamMesh) {
                         aoe.beamMesh.material.opacity = aoe.life / 60;
@@ -2333,7 +2801,6 @@
                     currentSway.x += (Math.random() - 0.5) * 0.3;
                     currentSway.y += (Math.random() - 0.5) * 0.3;
                 }
-                // --- NEW ADDITIONS END ---
 
                 if(Math.random() > 0.3 && aoe.type !== 'obs_strike' && aoe.type !== 'rpg_explosion') {
                     let spread = aoe.radius ? aoe.radius * 0.8 : 2;
@@ -2343,16 +2810,16 @@
                 if (aoe.damage) {
                     let radius = aoe.radius || 15;
                     
-                    // Damage to player (EXCEPT FOR RPG_EXPLOSION)
                     if (aoe.type !== 'rpg_explosion' && aoe.pos.distanceTo(controls.getObject().position) < radius && aoe.life % 10 === 0) {
-                        takePlayerDamage(aoe.damage, null); 
+                        if (aoe.source !== 'player') takePlayerDamage(aoe.damage, null, false); 
                     }
                     
-                    // Damage to AI enemies
                     aiControllers.forEach(ai => {
-                        if(ai && aoe.pos.distanceTo(ai.mesh.position) < radius && aoe.life % 10 === 0) {
-                            damageTexts.push(new DamageNumber(ai.mesh.position.clone().add(new THREE.Vector3(0,2,0)), aoe.damage)); 
-                            ai.takeDamage(aoe.damage);
+                        if(ai && !ai.isDead && aoe.pos.distanceTo(ai.mesh.position) < radius && aoe.life % 10 === 0) {
+                            if (aoe.source !== ai) {
+                                damageTexts.push(new DamageNumber(ai.mesh.position.clone().add(new THREE.Vector3(0,2,0)), aoe.damage)); 
+                                ai.takeDamage(aoe.damage);
+                            }
                         }
                     });
                 }
@@ -2360,10 +2827,8 @@
                 aoe.life--; 
                 if(aoe.life <= 0) { 
                     if(aoe.light) scene.remove(aoe.light); 
-                    // --- NEW ADDITIONS START ---
                     if(aoe.beamMesh) scene.remove(aoe.beamMesh);
                     if(aoe.ringMesh) scene.remove(aoe.ringMesh);
-                    // --- NEW ADDITIONS END ---
                     activeAOEs.splice(i, 1); 
                 }
             }
@@ -2428,6 +2893,17 @@
             if (isScoping) {
                 const config = WEAPON_CONFIG[selectedItems[activeWeaponIndex]];
                 targetFov = (config && config.type === "sniper") ? 15 : 40;
+                
+                let targetBlur = 0.015;
+                bokehPass.uniforms['maxblur'].value = THREE.MathUtils.lerp(bokehPass.uniforms['maxblur'].value, targetBlur, 0.1);
+                
+                const scopeDir = new THREE.Vector3(); camera.getWorldDirection(scopeDir);
+                bulletRaycaster.set(camera.position, scopeDir);
+                const focusHits = bulletRaycaster.intersectObjects(mapColliders);
+                let hitDist = focusHits.length > 0 ? focusHits[0].distance : 100.0;
+                bokehPass.uniforms['focus'].value = THREE.MathUtils.lerp(bokehPass.uniforms['focus'].value, hitDist, 0.2);
+            } else {
+                bokehPass.uniforms['maxblur'].value = THREE.MathUtils.lerp(bokehPass.uniforms['maxblur'].value, 0.0, 0.2);
             }
             
             camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.2); camera.updateProjectionMatrix();
@@ -2437,7 +2913,6 @@
             }
             weaponGroup.position.y = Math.sin(time * 0.005) * 0.01; weaponGroup.position.x = Math.cos(time * 0.003) * 0.01;
 
-            // --- NEW ADDITIONS START ---
             if (muzzleLight && muzzleLight.intensity > 0) muzzleLight.intensity = THREE.MathUtils.lerp(muzzleLight.intensity, 0, 0.2);
             if (muzzleSprite && muzzleSprite.material.opacity > 0) muzzleSprite.material.opacity = THREE.MathUtils.lerp(muzzleSprite.material.opacity, 0, 0.2);
 
@@ -2473,16 +2948,22 @@
             targetRecoil = THREE.MathUtils.lerp(targetRecoil, 0, 0.08);
             currentRecoil = THREE.MathUtils.lerp(currentRecoil, targetRecoil, 0.2);
             camera.rotation.x += currentRecoil;
-            // --- NEW ADDITIONS END ---
 
-            renderer.render(scene, camera);
+            if (composer && bokehPass.uniforms['maxblur'].value > 0.001) {
+                composer.render();
+            } else {
+                renderer.render(scene, camera);
+            }
 
-            // --- NEW ADDITIONS RESTORE START ---
             camera.rotation.x -= currentRecoil;
-            // --- NEW ADDITIONS RESTORE END ---
         }
 
-        window.onresize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+        window.onresize = () => { 
+            camera.aspect = window.innerWidth / window.innerHeight; 
+            camera.updateProjectionMatrix(); 
+            renderer.setSize(window.innerWidth, window.innerHeight); 
+            if(composer) composer.setSize(window.innerWidth, window.innerHeight);
+        };
     </script>   
 </body>
 </html>
