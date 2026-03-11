@@ -472,6 +472,17 @@
         </div>
     </div>
 
+    <div id="log-ui" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:600px; max-width:90%; height:400px; background:rgba(10,10,10,0.95); border:2px solid #00ffcc; border-radius:10px; z-index:3000; color:white; font-family:'Courier New', monospace; padding:20px; box-sizing:border-box; flex-direction:column;">
+        <h2 style="color:#00ffcc; text-align:center; margin-top:0; border-bottom:1px solid #333; padding-bottom:10px;">MISSION LOG RECOVERED</h2>
+        <div id="log-text" style="flex:1; overflow-y:auto; font-size:1.1rem; line-height:1.5; margin-bottom:20px;">Text goes here...</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <button id="log-prev" style="background:#333; color:white; border:none; padding:10px 20px; cursor:pointer;">PREV</button>
+            <span id="log-page-indicator" style="color:#888;">Page 1/3</span>
+            <button id="log-next" style="background:#333; color:white; border:none; padding:10px 20px; cursor:pointer;">NEXT</button>
+        </div>
+        <button id="log-close" style="width:100%; margin-top:15px; background:#ff007f; color:white; border:none; padding:10px; cursor:pointer; font-weight:bold;">CLOSE</button>
+    </div>
+
     <div id="ui-layer">
         <div id="fps-display">FPS: 0</div>
         <div id="blood-splatter"></div>
@@ -830,6 +841,44 @@
             multipleEnemiesToggle.disabled = !gameSettings.bigMaps;
             autoReloadToggle.checked = gameSettings.autoReload || false;
         }
+
+        // --- LOG UI LOGIC ---
+        let isLogOpen = false;
+        let currentLogPage = 0;
+        const logPages = [
+            "CLASSIFIED FILE: MISSION OVERSEER\n\nTarget: Overseer Stewart. \n\nObservations: The Overseer's rule over this facility has grown increasingly hostile and erratic. We have documented severe bias in her enforcement of facility protocols.",
+            "Specifically, she exhibits a deep-seated hatred for the workers in Sector 1 (formerly designated as Table 1). Her despising of them seems rooted in pure malice and prejudice.",
+            "What makes this truly intolerable is the blatant hypocrisy. The other sectors are infinitely worse—chaotic, deafeningly loud, and completely undisciplined. Yet, Overseer Stewart ignores them entirely to focus her wrath solely on Sector 1.",
+            "We can no longer stand by while Sector 1 bears the brunt of her tyrannical behavior. This data log serves as our official mission briefing. The regime of Overseer Stewart ends today. Retrieve the data core at all costs."
+        ];
+
+        function openLogUI() {
+            if (isLogOpen) return;
+            isLogOpen = true;
+            document.getElementById('log-ui').style.display = 'flex';
+            currentLogPage = 0;
+            updateLogUI();
+            controls.unlock();
+        }
+
+        function updateLogUI() {
+            document.getElementById('log-text').innerText = logPages[currentLogPage];
+            document.getElementById('log-page-indicator').innerText = `Page ${currentLogPage + 1} of ${logPages.length}`;
+            document.getElementById('log-prev').disabled = currentLogPage === 0;
+            document.getElementById('log-next').disabled = currentLogPage === logPages.length - 1;
+            document.getElementById('log-prev').style.opacity = currentLogPage === 0 ? 0.5 : 1;
+            document.getElementById('log-next').style.opacity = currentLogPage === logPages.length - 1 ? 0.5 : 1;
+        }
+
+        function closeLogUI() {
+            isLogOpen = false;
+            document.getElementById('log-ui').style.display = 'none';
+            setTimeout(() => { controls.lock(); }, 100);
+        }
+
+        document.getElementById('log-prev').onclick = () => { if(currentLogPage > 0) { currentLogPage--; updateLogUI(); } };
+        document.getElementById('log-next').onclick = () => { if(currentLogPage < logPages.length - 1) { currentLogPage++; updateLogUI(); } };
+        document.getElementById('log-close').onclick = closeLogUI;
 
         // --- IN-GAME SETTINGS LOGIC ---
         const ingameInputs = document.querySelectorAll('.setting-row input[type=range], .setting-row input[type=checkbox], .setting-row input[type=color], .setting-row select, .toggle-switch input');
@@ -1633,6 +1682,23 @@
 
                 // NO VOID: Floor underneath everything
                 addObj(new THREE.BoxGeometry(300 * mapScale, 2, 300 * mapScale), darkMetal, [0, -10, 0]);
+                
+                // ACTUAL SOLID FLOORS (Just beneath play area level)
+                addObj(new THREE.BoxGeometry(300 * mapScale, 2, 300 * mapScale), darkMetal, [0, -2, 0]); 
+                
+                // ACTUAL OUTER BOUNDARY WALLS
+                const wallMat = new THREE.MeshStandardMaterial({color: 0x111b24, roughness: 0.9, metalness: 0.5});
+                addObj(new THREE.BoxGeometry(300 * mapScale, 100, 2), wallMat, [0, 40, 150 * mapScale]);
+                addObj(new THREE.BoxGeometry(300 * mapScale, 100, 2), wallMat, [0, 40, -150 * mapScale]);
+                addObj(new THREE.BoxGeometry(2, 100, 300 * mapScale), wallMat, [150 * mapScale, 40, 0]);
+                addObj(new THREE.BoxGeometry(2, 100, 300 * mapScale), wallMat, [-150 * mapScale, 40, 0]);
+
+                // MISSION LOG CABINETS
+                const cabMat = new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.8});
+                let cab1 = addObj(new THREE.BoxGeometry(4, 6, 2), cabMat, [0, 3, 20]);
+                cab1.userData = { isCabinet: true };
+                let cab2 = addObj(new THREE.BoxGeometry(4, 6, 2), cabMat, [-40 * mapScale, 3, 0], [0, Math.PI/2, 0]);
+                cab2.userData = { isCabinet: true };
 
                 // MIDDLE LANE: Ice Disk & Monolith
                 const iceDisk = addObj(new THREE.CylinderGeometry(40 * mapScale, 40 * mapScale, 1, 32), iceMat, [0, -0.5, 0]);
@@ -1702,6 +1768,52 @@
 
                 addJumpPad([0, 0.5, 30 * mapScale]);
                 addJumpPad([0, 0.5, -30 * mapScale]);
+
+                // --- NEW ADDITIONS: CORRIDOR WALLS, ROOFS, DOORS, AND PROPS ---
+                // Roofs
+                addObj(new THREE.BoxGeometry(110 * mapScale, 2, 10), darkMetal, [0, 12.5, 40 * mapScale]);
+                addObj(new THREE.BoxGeometry(110 * mapScale, 2, 10), darkMetal, [0, 12.5, -40 * mapScale]);
+                
+                // Outer Walls
+                addObj(new THREE.BoxGeometry(110 * mapScale, 12, 2), darkMetal, [0, 6, 46 * mapScale]);
+                addObj(new THREE.BoxGeometry(110 * mapScale, 12, 2), darkMetal, [0, 6, -46 * mapScale]);
+                
+                // Inner Walls (with gap in center for doors)
+                addObj(new THREE.BoxGeometry(50 * mapScale, 12, 2), darkMetal, [-30 * mapScale, 6, 34 * mapScale]);
+                addObj(new THREE.BoxGeometry(50 * mapScale, 12, 2), darkMetal, [30 * mapScale, 6, 34 * mapScale]);
+                addObj(new THREE.BoxGeometry(50 * mapScale, 12, 2), darkMetal, [-30 * mapScale, 6, -34 * mapScale]);
+                addObj(new THREE.BoxGeometry(50 * mapScale, 12, 2), darkMetal, [30 * mapScale, 6, -34 * mapScale]);
+
+                // Doors back to the center
+                let cDoor1 = addObj(new THREE.BoxGeometry(10 * mapScale, 12, 2), dMat, [0, 6, 34 * mapScale]);
+                let cDoor1Idx = airlockDoors.length;
+                airlockDoors.push({mesh: cDoor1, closedY: 6, openY: 18, targetY: 6, isOpen: false});
+                let cBtn1 = addObj(new THREE.BoxGeometry(1, 2, 1), bMat.clone(), [6 * mapScale, 3, 33 * mapScale]);
+                cBtn1.userData = {isButton: true, doorIdx: cDoor1Idx};
+                let cBtn1_in = addObj(new THREE.BoxGeometry(1, 2, 1), bMat.clone(), [6 * mapScale, 3, 35 * mapScale]);
+                cBtn1_in.userData = {isButton: true, doorIdx: cDoor1Idx};
+
+                let cDoor2 = addObj(new THREE.BoxGeometry(10 * mapScale, 12, 2), dMat, [0, 6, -34 * mapScale]);
+                let cDoor2Idx = airlockDoors.length;
+                airlockDoors.push({mesh: cDoor2, closedY: 6, openY: 18, targetY: 6, isOpen: false});
+                let cBtn2 = addObj(new THREE.BoxGeometry(1, 2, 1), bMat.clone(), [6 * mapScale, 3, -33 * mapScale]);
+                cBtn2.userData = {isButton: true, doorIdx: cDoor2Idx};
+                let cBtn2_in = addObj(new THREE.BoxGeometry(1, 2, 1), bMat.clone(), [6 * mapScale, 3, -35 * mapScale]);
+                cBtn2_in.userData = {isButton: true, doorIdx: cDoor2Idx};
+
+                // Vases / Props in corridors
+                const vaseMat = new THREE.MeshStandardMaterial({color: 0x44aaff, metalness: 0.5, roughness: 0.2});
+                [-40, -20, 20, 40].forEach(xPos => {
+                    let v1 = addObj(new THREE.CylinderGeometry(1, 0.6, 3, 12), vaseMat, [xPos * mapScale, 1.5, 43 * mapScale]);
+                    v1.userData = { destructible: true, health: 30 };
+                    let v2 = addObj(new THREE.CylinderGeometry(1, 0.6, 3, 12), vaseMat, [xPos * mapScale, 1.5, 37 * mapScale]);
+                    v2.userData = { destructible: true, health: 30 };
+                    
+                    let v3 = addObj(new THREE.CylinderGeometry(1, 0.6, 3, 12), vaseMat, [xPos * mapScale, 1.5, -43 * mapScale]);
+                    v3.userData = { destructible: true, health: 30 };
+                    let v4 = addObj(new THREE.CylinderGeometry(1, 0.6, 3, 12), vaseMat, [xPos * mapScale, 1.5, -37 * mapScale]);
+                    v4.userData = { destructible: true, health: 30 };
+                });
 
                 // Steam Interval for Left Lane
                 setInterval(() => { triggerFrostSteam(); }, 10000);
@@ -2228,7 +2340,7 @@
 
             // --- IN-GAME SETTINGS LOCK/UNLOCK LOGIC ---
             controls.addEventListener('unlock', () => {
-                if (!isGameOver && document.getElementById('ui-layer').style.display === 'block') {
+                if (!isGameOver && document.getElementById('ui-layer').style.display === 'block' && !isLogOpen) {
                     document.getElementById('ingame-settings-modal').style.display = 'flex';
                 }
             });
@@ -2358,14 +2470,18 @@
                     const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
                     bulletRaycaster.set(camera.position, dir);
                     let hits = bulletRaycaster.intersectObjects(mapColliders);
-                    if (hits.length > 0 && hits[0].distance < 15 && hits[0].object.userData.isButton) {
-                        let btn = hits[0].object;
-                        let door = airlockDoors[btn.userData.doorIdx];
-                        door.isOpen = !door.isOpen;
-                        door.targetY = door.isOpen ? door.openY : door.closedY;
-                        btn.material.color.setHex(door.isOpen ? 0x00ff00 : 0xff0000);
-                        btn.material.emissive.setHex(door.isOpen ? 0x00ff00 : 0xff0000);
-                        SoundEngine.playTone(door.isOpen ? 600 : 300, 'sine', 0.2);
+                    if (hits.length > 0 && hits[0].distance < 15) {
+                        if (hits[0].object.userData.isButton) {
+                            let btn = hits[0].object;
+                            let door = airlockDoors[btn.userData.doorIdx];
+                            door.isOpen = !door.isOpen;
+                            door.targetY = door.isOpen ? door.openY : door.closedY;
+                            btn.material.color.setHex(door.isOpen ? 0x00ff00 : 0xff0000);
+                            btn.material.emissive.setHex(door.isOpen ? 0x00ff00 : 0xff0000);
+                            SoundEngine.playTone(door.isOpen ? 600 : 300, 'sine', 0.2);
+                        } else if (hits[0].object.userData.isCabinet) {
+                            openLogUI();
+                        }
                     }
                 }
 
