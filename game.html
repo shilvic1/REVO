@@ -31,18 +31,10 @@
             letter-spacing: 1px; transition: 0.3s;
         }
 
-        /* NEW GAMEMODE SCREEN */
-        #gamemode-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle at center, #111 0%, #000 100%);
-            z-index: 215; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: white;
-        }
-
         #map-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle at center, #111 0%, #000 100%);
-            z-index: 210; display: none; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 210; display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: white;
         }
         
@@ -341,15 +333,6 @@
         #p-score { color: #00ffcc; text-shadow: 0 0 10px #00ffcc; }
         #e-score { color: #ff007f; text-shadow: 0 0 10px #ff007f; }
         #match-timer { font-size: 1.5rem; color: white; background: #222; padding: 5px 15px; border-radius: 5px; }
-
-        /* NEW TDM SCOREBOARD */
-        #tdm-scoreboard {
-            position: absolute; top: 10px; left: 10px; display: none; 
-            background: rgba(0,0,0,0.8); border: 2px solid #333; border-radius: 8px; padding: 10px 20px;
-            font-size: 1.5rem; color: white; font-weight: 900; text-shadow: 0 0 5px black;
-        }
-        .tdm-blue-text { color: #00aaff; text-shadow: 0 0 10px #00aaff; }
-        .tdm-red-text { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
         
         #round-announcement {
             position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
@@ -383,20 +366,6 @@
     </div>
 
     <div id="network-status">STATUS: OFFLINE</div>
-
-    <div id="gamemode-screen">
-        <h1>SELECT GAME MODE</h1>
-        <div class="map-cards" id="gm-cards-container">
-            <div class="map-card gm-card" data-gm="1v1"><h3>Standard 1v1</h3><p>Classic Duel</p></div>
-            <div class="map-card gm-card" data-gm="TDM"><h3>Team Deathmatch</h3><p>Squad Combat</p></div>
-            <div class="map-card gm-card" data-gm="JUG" style="border-color: #ffaa00;"><h3>Juggernaut</h3><p>20 vs 1 Survival</p></div>
-        </div>
-        <div id="tdm-options" style="display:none; margin-top: 20px; text-align: center;">
-            <h3 style="color: #00ffcc;">SELECT SQUAD SIZE</h3>
-            <button class="game-settings-btn" style="position:relative; right:auto; bottom:auto; margin:5px;" onclick="selectTDM(4)">4v4</button>
-            <button class="game-settings-btn" style="position:relative; right:auto; bottom:auto; margin:5px;" onclick="selectTDM(5)">5v5</button>
-        </div>
-    </div>
 
     <div id="map-screen">
         <h1 id="map-header">SELECT ARENA</h1>
@@ -432,10 +401,51 @@
     <div id="settings-modal">
         <div class="settings-content">
             <h2><i class="fas fa-cog"></i> GAME SETTINGS</h2>
-            <div class="setting-group"><label>Gameplay</label><div class="toggle-option"><span>Auto-Reload (Empty Mag)</span><label class="toggle-switch"><input type="checkbox" id="auto-reload-toggle"><span class="toggle-slider"></span></label></div></div>
-            <div class="setting-group"><label>Difficulty Meter</label><div class="difficulty-options"><button class="difficulty-btn selected" data-difficulty="easy">Easy</button><button class="difficulty-btn" data-difficulty="medium">Medium</button><button class="difficulty-btn" data-difficulty="hard">Hard</button><button class="difficulty-btn" data-difficulty="impossible">Impossible</button></div></div>
-            <div class="setting-group"><label>Map Options</label><div class="toggle-option"><span>Big Maps (More props & space for long fights)</span><label class="toggle-switch"><input type="checkbox" id="big-maps-toggle"><span class="toggle-slider"></span></label></div></div>
-            <div class="setting-group"><label>Enemy Options</label><div class="toggle-option"><span>Multiple Enemies (Free for all - AI vs AI)</span><label class="toggle-switch"><input type="checkbox" id="multiple-enemies-toggle" disabled><span class="toggle-slider"></span></label></div><p style="font-size: 0.7rem; color: #666; margin-top: 5px;">* Multiple Enemies only available on Big Maps</p></div>
+            
+            <div class="setting-group">
+                <label>Gameplay</label>
+                <div class="toggle-option">
+                    <span>Auto-Reload (Empty Mag)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="auto-reload-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>Difficulty Meter</label>
+                <div class="difficulty-options">
+                    <button class="difficulty-btn selected" data-difficulty="easy">Easy</button>
+                    <button class="difficulty-btn" data-difficulty="medium">Medium</button>
+                    <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+                    <button class="difficulty-btn" data-difficulty="impossible">Impossible</button>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>Map Options</label>
+                <div class="toggle-option">
+                    <span>Big Maps (More props & space for long fights)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="big-maps-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>Enemy Options</label>
+                <div class="toggle-option">
+                    <span>Multiple Enemies (Free for all - AI vs AI)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="multiple-enemies-toggle" disabled>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <p style="font-size: 0.7rem; color: #666; margin-top: 5px;">* Multiple Enemies only available on Big Maps</p>
+            </div>
+
             <button class="settings-close-btn" id="close-settings-btn">SAVE & CONTINUE</button>
         </div>
     </div>
@@ -443,11 +453,52 @@
     <div id="ingame-settings-modal">
         <div class="settings-content scrollable">
             <h2><i class="fas fa-cog"></i> IN-GAME SETTINGS</h2>
-            <div class="setting-group"><label>1. Gameplay & Controls</label><div class="setting-row"><span>Sensitivity</span><input type="range" id="set-sens" min="0.1" max="2.0" step="0.05" value="0.35"><span id="val-sens">0.35</span></div><div class="setting-row"><span>ADS Sensitivity Multiplier</span><input type="range" id="set-ads-sens" min="0.1" max="2.0" step="0.05" value="1.0"><span id="val-ads-sens">1.0</span></div><div class="toggle-option"><span>Invert Look</span><label class="toggle-switch"><input type="checkbox" id="set-invert-y"><span class="toggle-slider"></span></label></div><div class="setting-row"><span>Field of View (FOV)</span><input type="range" id="set-fov" min="70" max="110" step="1" value="75"><span id="val-fov">75</span></div><div class="toggle-option"><span>Sprint Toggle (Off = Hold)</span><label class="toggle-switch"><input type="checkbox" id="set-sprint-toggle" checked><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Crouch Toggle (Off = Hold)</span><label class="toggle-switch"><input type="checkbox" id="set-crouch-toggle"><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Auto-Crouch (Low Ceilings)</span><label class="toggle-switch"><input type="checkbox" id="set-auto-crouch" checked><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Left-Handed Viewmodel</span><label class="toggle-switch"><input type="checkbox" id="set-lefthand"><span class="toggle-slider"></span></label></div></div>
-            <div class="setting-group"><label>2. Crosshair Customization</label><div class="setting-row"><span>Type</span><select id="set-ch-type"><option>Cross</option><option>Circle</option><option>Dot</option><option>Off</option></select></div><div class="setting-row"><span>Color</span><input type="color" id="set-ch-color" value="#ff0000"></div><div class="setting-row"><span>Gap</span><input type="range" id="set-ch-gap" min="0" max="20" step="1" value="10"><span id="val-ch-gap">10</span></div><div class="setting-row"><span>Thickness</span><input type="range" id="set-ch-thick" min="1" max="10" step="1" value="2"><span id="val-ch-thick">2</span></div><div class="toggle-option"><span>Center Dot</span><label class="toggle-switch"><input type="checkbox" id="set-ch-dot"><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Outline</span><label class="toggle-switch"><input type="checkbox" id="set-ch-outline" checked><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Dynamic Gap</span><label class="toggle-switch"><input type="checkbox" id="set-ch-dynamic"><span class="toggle-slider"></span></label></div></div>
-            <div class="setting-group"><label>3. Visuals & Graphics</label><div class="setting-row"><span>Screen Shake</span><input type="range" id="set-shake" min="0" max="100" step="5" value="100"><span id="val-shake">100%</span></div><div class="setting-row"><span>Viewmodel Bobbing</span><input type="range" id="set-bob" min="0" max="100" step="5" value="100"><span id="val-bob">100%</span></div><div class="toggle-option"><span>Bullet Tracers</span><label class="toggle-switch"><input type="checkbox" id="set-tracers" checked><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Damage Numbers</span><label class="toggle-switch"><input type="checkbox" id="set-dmg-nums" checked><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Blood/VFX</span><label class="toggle-switch"><input type="checkbox" id="set-vfx" checked><span class="toggle-slider"></span></label></div></div>
-            <div class="setting-group"><label>4. Audio</label><div class="setting-row"><span>Master Volume</span><input type="range" id="set-vol-master" min="0" max="100" step="1" value="100"><span id="val-vol-master">100</span></div><div class="toggle-option"><span>SFX Volume</span><label class="toggle-switch"><input type="checkbox" id="set-vol-sfx" checked><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Hitmarker Sound</span><label class="toggle-switch"><input type="checkbox" id="set-hitmarker" checked><span class="toggle-slider"></span></label></div></div>
-            <div class="setting-group"><label>5. Social & HUD</label><div class="toggle-option"><span>Teammate Outlines</span><label class="toggle-switch"><input type="checkbox" id="set-outlines" checked><span class="toggle-slider"></span></label></div><div class="toggle-option"><span>Show FPS/Ping</span><label class="toggle-switch"><input type="checkbox" id="set-fps"><span class="toggle-slider"></span></label></div></div>
+            
+            <div class="setting-group">
+                <label>1. Gameplay & Controls</label>
+                <div class="setting-row"><span>Sensitivity</span><input type="range" id="set-sens" min="0.1" max="2.0" step="0.05" value="0.35"><span id="val-sens">0.35</span></div>
+                <div class="setting-row"><span>ADS Sensitivity Multiplier</span><input type="range" id="set-ads-sens" min="0.1" max="2.0" step="0.05" value="1.0"><span id="val-ads-sens">1.0</span></div>
+                <div class="toggle-option"><span>Invert Look</span><label class="toggle-switch"><input type="checkbox" id="set-invert-y"><span class="toggle-slider"></span></label></div>
+                <div class="setting-row"><span>Field of View (FOV)</span><input type="range" id="set-fov" min="70" max="110" step="1" value="75"><span id="val-fov">75</span></div>
+                <div class="toggle-option"><span>Sprint Toggle (Off = Hold)</span><label class="toggle-switch"><input type="checkbox" id="set-sprint-toggle" checked><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Crouch Toggle (Off = Hold)</span><label class="toggle-switch"><input type="checkbox" id="set-crouch-toggle"><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Auto-Crouch (Low Ceilings)</span><label class="toggle-switch"><input type="checkbox" id="set-auto-crouch" checked><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Left-Handed Viewmodel</span><label class="toggle-switch"><input type="checkbox" id="set-lefthand"><span class="toggle-slider"></span></label></div>
+            </div>
+
+            <div class="setting-group">
+                <label>2. Crosshair Customization</label>
+                <div class="setting-row"><span>Type</span><select id="set-ch-type"><option>Cross</option><option>Circle</option><option>Dot</option><option>Off</option></select></div>
+                <div class="setting-row"><span>Color</span><input type="color" id="set-ch-color" value="#ff0000"></div>
+                <div class="setting-row"><span>Gap</span><input type="range" id="set-ch-gap" min="0" max="20" step="1" value="10"><span id="val-ch-gap">10</span></div>
+                <div class="setting-row"><span>Thickness</span><input type="range" id="set-ch-thick" min="1" max="10" step="1" value="2"><span id="val-ch-thick">2</span></div>
+                <div class="toggle-option"><span>Center Dot</span><label class="toggle-switch"><input type="checkbox" id="set-ch-dot"><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Outline</span><label class="toggle-switch"><input type="checkbox" id="set-ch-outline" checked><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Dynamic Gap</span><label class="toggle-switch"><input type="checkbox" id="set-ch-dynamic"><span class="toggle-slider"></span></label></div>
+            </div>
+
+            <div class="setting-group">
+                <label>3. Visuals & Graphics</label>
+                <div class="setting-row"><span>Screen Shake</span><input type="range" id="set-shake" min="0" max="100" step="5" value="100"><span id="val-shake">100%</span></div>
+                <div class="setting-row"><span>Viewmodel Bobbing</span><input type="range" id="set-bob" min="0" max="100" step="5" value="100"><span id="val-bob">100%</span></div>
+                <div class="toggle-option"><span>Bullet Tracers</span><label class="toggle-switch"><input type="checkbox" id="set-tracers" checked><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Damage Numbers</span><label class="toggle-switch"><input type="checkbox" id="set-dmg-nums" checked><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Blood/VFX</span><label class="toggle-switch"><input type="checkbox" id="set-vfx" checked><span class="toggle-slider"></span></label></div>
+            </div>
+
+            <div class="setting-group">
+                <label>4. Audio</label>
+                <div class="setting-row"><span>Master Volume</span><input type="range" id="set-vol-master" min="0" max="100" step="1" value="100"><span id="val-vol-master">100</span></div>
+                <div class="toggle-option"><span>SFX Volume</span><label class="toggle-switch"><input type="checkbox" id="set-vol-sfx" checked><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Hitmarker Sound</span><label class="toggle-switch"><input type="checkbox" id="set-hitmarker" checked><span class="toggle-slider"></span></label></div>
+            </div>
+
+            <div class="setting-group">
+                <label>5. Social & HUD</label>
+                <div class="toggle-option"><span>Teammate Outlines</span><label class="toggle-switch"><input type="checkbox" id="set-outlines" checked><span class="toggle-slider"></span></label></div>
+                <div class="toggle-option"><span>Show FPS/Ping</span><label class="toggle-switch"><input type="checkbox" id="set-fps"><span class="toggle-slider"></span></label></div>
+            </div>
+
             <button class="settings-close-btn" id="resume-game-btn">RESUME GAME</button>
         </div>
     </div>
@@ -466,12 +517,6 @@
     <div id="ping-container"></div>
 
     <div id="ui-layer">
-        <div id="tdm-scoreboard">
-            <span class="tdm-blue-text">BLUE: <span id="tdm-blue">0</span></span> | 
-            <span class="tdm-red-text">RED: <span id="tdm-red">0</span></span>
-            <div id="tdm-timer" style="font-size: 1.2rem; color: #fff; text-align: center; margin-top: 5px; text-shadow: 0 0 5px black;">TIME: 0:00</div>
-        </div>
-        
         <div id="fps-display">FPS: 0</div>
         <div id="blood-splatter"></div>
         <div id="frost-overlay"></div>
@@ -579,7 +624,7 @@
                 this.ambienceGain.connect(audioCtx.destination);
                 this.ambienceGain.gain.value = 0.05 * getVolMult();
 
-                if (mapName === 'SkyPort' || mapName === 'Arctic Outpost' || mapName === 'Desert Ruins') {
+                if (mapName === 'SkyPort') {
                     const bufferSize = audioCtx.sampleRate * 2;
                     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                     const data = buffer.getChannelData(0);
@@ -602,7 +647,7 @@
                     
                     this.ambienceNoise.connect(filter); filter.connect(this.ambienceGain);
                     this.ambienceNoise.start();
-                } else if (mapName === 'Construction' || mapName === 'Harbor Lockdown' || mapName === 'Volcanic Facility') {
+                } else if (mapName === 'Construction') {
                     this.ambienceOsc = audioCtx.createOscillator();
                     this.ambienceOsc.type = 'sawtooth';
                     this.ambienceOsc.frequency.value = 55;
@@ -1000,49 +1045,6 @@
         const isMultiplayer = (gameMode === 'online');
         const isHost = (netRole === 'host');
         
-        // NEW GAMEMODE SELECTION STATE
-        let selectedGameMode = '1v1';
-        let tdmSize = 4;
-        let tdmBlueKills = 0;
-        let tdmRedKills = 0;
-
-        document.getElementById('gamemode-screen').style.display = isMultiplayer ? 'none' : 'flex';
-
-        document.querySelectorAll('.gm-card').forEach(card => {
-            card.onclick = () => {
-                document.querySelectorAll('.gm-card').forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
-                let gm = card.getAttribute('data-gm');
-                
-                if (gm === 'TDM') {
-                    document.getElementById('tdm-options').style.display = 'block';
-                } else {
-                    selectedGameMode = gm;
-                    document.getElementById('gamemode-screen').style.display = 'none';
-                    document.getElementById('map-screen').style.display = 'flex';
-                }
-            };
-        });
-
-        window.selectTDM = function(size) {
-            selectedGameMode = 'TDM';
-            tdmSize = size;
-            document.getElementById('gamemode-screen').style.display = 'none';
-            
-            // Inject TDM Maps
-            const container = document.getElementById('map-cards-container');
-            container.innerHTML = `
-                <div class="map-card" data-map="Arctic Outpost"><h3>Arctic Outpost</h3><p>Frozen Radar Base</p></div>
-                <div class="map-card" data-map="Desert Ruins"><h3>Desert Ruins</h3><p>Sun-bleached Temple</p></div>
-                <div class="map-card" data-map="Harbor Lockdown"><h3>Harbor Lockdown</h3><p>Rainy Industrial Port</p></div>
-                <div class="map-card" data-map="Volcanic Facility"><h3>Volcanic Facility</h3><p>Geothermal Station</p></div>
-                <div class="map-card" data-map="Random" style="border-color: #ffd700;"><h3>Random Arena</h3><p>Let Fate Decide</p></div>
-            `;
-            attachMapCardListeners();
-            
-            document.getElementById('map-screen').style.display = 'flex';
-        };
-
         let peer;
         let peerConn;
         let networkPlayerObj = null;
@@ -1263,35 +1265,6 @@
         let eStats = { kills: 0, deaths: 0, shotsFired: 0, shotsHit: 0, damageDealt: 0 };
 
         function checkGameEnd() {
-            if (selectedGameMode === 'TDM') {
-                if (matchTimeRemaining <= 0) {
-                    isGameOver = true;
-                    controls.unlock();
-                    let isWin = tdmBlueKills > tdmRedKills;
-                    let isDraw = tdmBlueKills === tdmRedKills;
-
-                    document.getElementById('ui-layer').style.display = 'none';
-                    document.getElementById('match-results').style.display = 'flex';
-                    
-                    document.getElementById('res-title').innerText = isDraw ? "DRAW" : (isWin ? "VICTORY" : "DEFEAT");
-                    document.getElementById('res-title').style.color = isWin ? "#00ffcc" : (isDraw ? "#fff" : "#ff007f");
-                    document.getElementById('res-title').style.textShadow = isWin ? "0 0 20px #00ffcc" : "0 0 20px #ff007f";
-                    document.getElementById('res-mvp').innerText = isWin ? "MVP: BLUE TEAM" : (isDraw ? "NO MVP" : "MVP: RED TEAM");
-                    
-                    document.getElementById('stat-kills').innerText = pStats.kills;
-                    document.getElementById('stat-deaths').innerText = pStats.deaths;
-                    document.getElementById('stat-dmg').innerText = Math.floor(pStats.damageDealt);
-                    document.getElementById('stat-shots').innerText = pStats.shotsFired;
-                    document.getElementById('stat-hits').innerText = pStats.shotsHit;
-                    let acc = pStats.shotsFired > 0 ? Math.round((pStats.shotsHit / pStats.shotsFired) * 100) : 0;
-                    document.getElementById('stat-acc').innerText = acc + "%";
-
-                    setTimeout(() => { window.location.reload(); }, 5000);
-                    return true;
-                }
-                return false;
-            }
-
             let totalRoundsPlayed = pScore + eScore;
             if (totalRoundsPlayed >= MAX_ROUNDS) {
                 isGameOver = true;
@@ -1358,7 +1331,7 @@
             if(document.getElementById('set-vfx') && !document.getElementById('set-vfx').checked) return;
             let bloodUI = document.getElementById('blood-splatter');
             if (bloodUI) {
-                if (health < maxHealth && health > 0) bloodUI.style.opacity = (maxHealth - Math.max(0, health)) / maxHealth;
+                if (health < 100 && health > 0) bloodUI.style.opacity = (100 - Math.max(0, health)) / 100;
                 else bloodUI.style.opacity = 0;
             }
         }
@@ -1377,15 +1350,10 @@
             }
         }
 
-        function onPlayerKill(killedTeam = null) {
+        function onPlayerKill() {
+            pScore++;
             pStats.kills++;
-            if (selectedGameMode === 'TDM') {
-                tdmBlueKills++;
-                document.getElementById('tdm-blue').innerText = tdmBlueKills;
-            } else {
-                pScore++;
-                document.getElementById('p-score').innerText = pScore;
-            }
+            document.getElementById('p-score').innerText = pScore;
             if (selectedItems[4] === "Adrenaline Rush") adrenalineEndTime = performance.now() + 3000;
             triggerSlowMo();
         }
@@ -1423,11 +1391,7 @@
             "Stun Baton": { rpm: 600, type: "melee", color: 0x0984e3, damage: 35, weight: 1.3 },
             "Brass Knuckles": { rpm: 120, type: "melee", color: 0xd63031, damage: 50, weight: 1.4 },
             "Tomahawk": { rpm: 1000, type: "melee", color: 0x2d3436, damage: 95, weight: 1.3 },
-            "Crowbar": { rpm: 700, type: "melee", color: 0xfa8231, damage: 60, weight: 1.2 },
-
-            // JUGGERNAUT EXCLUSIVES
-            "Juggernaut-LMG": { mag: 200, reload: 4000, rpm: 600, type: "auto", color: 0x550000, damage: 45, weight: 0.5 },
-            "Bear Trap": { type: "throwable", effect: "shock", cooldown: 2000, color: 0x333333, aoeDmg: 50, radius: 10, weight: 1.0 }
+            "Crowbar": { rpm: 700, type: "melee", color: 0xfa8231, damage: 60, weight: 1.2 }
         };
 
         const LOADOUT_DATA = [
@@ -1437,9 +1401,6 @@
             { name: "MELEE", items: ["Tactical Knife", "Karambit", "Butterfly Knife", "Stun Baton", "Brass Knuckles", "Tomahawk", "Crowbar"] },
             { name: "PERK", items: ["None", "Head-Hunter", "Rebound", "Momentum", "Point Blank", "Aerial Ace", "Gravity Well", "Adrenaline Rush"] }
         ];
-
-        // AI RANDOM NAMES
-        const AI_NAMES = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Ghost", "Hunter", "Icarus", "Joker", "Kilo", "Lima", "Maverick", "Nova", "Oscar", "Phantom", "Raptor", "Sierra", "Tango", "Viper", "Wolf"];
 
         let selectedItems = [null, null, null, null, null];
         let ammoState = [0, 0, 1, 0, 0]; 
@@ -1610,43 +1571,30 @@
         const sparkTex = createParticleTexture('spark');
 
         // --- UI LOGIC ---
-        function attachMapCardListeners() {
-            document.querySelectorAll('#map-cards-container .map-card').forEach(card => {
-                card.onclick = () => {
-                    if(isMultiplayer && !isHost) return; 
+        document.querySelectorAll('#map-cards-container .map-card').forEach(card => {
+            card.onclick = () => {
+                if(isMultiplayer && !isHost) return; 
 
-                    document.querySelectorAll('#map-cards-container .map-card').forEach(c => c.classList.remove('selected'));
-                    card.classList.add('selected');
-                    
-                    let chosenMap = card.getAttribute('data-map');
-                    if (chosenMap === 'Random') {
-                        let maps = ['Playground', 'SkyPort', 'Construction', 'SubZero', 'Container'];
-                        if(selectedGameMode === 'TDM') {
-                            maps = ['Arctic Outpost', 'Desert Ruins', 'Harbor Lockdown', 'Volcanic Facility'];
-                        }
-                        chosenMap = maps[Math.floor(Math.random() * maps.length)];
-                    }
-                    selectedMap = chosenMap;
+                document.querySelectorAll('#map-cards-container .map-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                
+                let chosenMap = card.getAttribute('data-map');
+                if (chosenMap === 'Random') {
+                    const maps = ['Playground', 'SkyPort', 'Construction', 'SubZero', 'Container'];
+                    chosenMap = maps[Math.floor(Math.random() * maps.length)];
+                }
+                selectedMap = chosenMap;
 
-                    if (isMultiplayer && isHost && peerConn && peerConn.open) {
-                        peerConn.send({ type: 'map_select', map: selectedMap });
-                    }
+                if (isMultiplayer && isHost && peerConn && peerConn.open) {
+                    peerConn.send({ type: 'map_select', map: selectedMap });
+                }
 
-                    setTimeout(() => {
-                        document.getElementById('map-screen').style.display = 'none';
-                        if (selectedGameMode === 'JUG') {
-                            // Force Loadout for Juggernaut
-                            selectedItems = ["Juggernaut-LMG", "Shorty", "Bear Trap", "Brass Knuckles", "Adrenaline Rush"];
-                            checkDeploy();
-                            document.getElementById('deploy-btn').click(); // Auto-deploy
-                        } else {
-                            document.getElementById('selection-screen').style.display = 'flex';
-                        }
-                    }, 300);
-                };
-            });
-        }
-        attachMapCardListeners();
+                setTimeout(() => {
+                    document.getElementById('map-screen').style.display = 'none';
+                    document.getElementById('selection-screen').style.display = 'flex';
+                }, 300);
+            };
+        });
 
         const menuGrid = document.getElementById('menu-grid');
         function buildMenu() {
@@ -1681,7 +1629,6 @@
                 document.getElementById('ui-layer').style.display = 'block';
                 
                 maxHealth = (selectedItems[4] === "Adrenaline Rush") ? 255 : 300;
-                if (selectedGameMode === 'JUG') maxHealth = 500;
                 health = maxHealth;
 
                 selectedItems.forEach((name, i) => {
@@ -1705,6 +1652,28 @@
             }
             checkDeploymentStart();
         };
+
+        let secretBuffer = "";
+        window.addEventListener('keydown', (e) => {
+            if(e.key && e.key.length === 1) secretBuffer += e.key;
+            if(secretBuffer.length > 10) secretBuffer = secretBuffer.slice(-10);
+            if(secretBuffer.includes("ragbo") && !WEAPON_CONFIG["OBS"]) {
+                secretBuffer = "";
+                WEAPON_CONFIG["OBS"] = { mag: Infinity, reload: 0, rpm: 30, type: "obs", color: 0x8b4513, damage: 1500, weight: 1.0 };
+                alert("OBS (Orbital Strike Cannon) UNLOCKED! Added to Melee Weapons (Slot 4).");
+                LOADOUT_DATA[3].items.push("OBS"); 
+                buildMenu();
+                
+                if(document.getElementById('ui-layer').style.display === 'block') {
+                    selectedItems[3] = "OBS";
+                    activeWeaponIndex = 3;
+                    updateWeaponModel();
+                    updateAmmoUI();
+                    const slot = document.getElementById('hud-slot-3');
+                    if(slot) { slot.innerText = "OBS"; slot.classList.add('active'); }
+                }
+            }
+        });
 
         function resetRound() {
             if (isGameOver) return; 
@@ -1732,6 +1701,7 @@
             particles.forEach(p => scene.remove(p.mesh)); particles = [];
             pings.forEach(p => p.el.remove()); pings = [];
             
+            maxHealth = (selectedItems[4] === "Adrenaline Rush") ? 255 : 300;
             health = maxHealth;
             document.getElementById('hp-bar').style.width = '100%';
             updateBloodUI();
@@ -1739,33 +1709,36 @@
             weaponGroup.visible = true;
             
             let spawnP = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, 60) : new THREE.Vector3(0, 10, 40));
+            let spawnE = selectedMap === "Construction" ? new THREE.Vector3(-45, 15, -120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, -60) : new THREE.Vector3(0, 10, -40));
+            let spawnE2 = selectedMap === "Construction" ? new THREE.Vector3(45, 15, -120) : new THREE.Vector3(30, 10, -30);
 
             controls.getObject().position.copy(spawnP);
             velocity.set(0,0,0);
             
-            aiControllers.forEach(ai => {
-                 if (ai) ai.respawn();
-            });
+            if (gameSettings.multipleEnemies && aiControllers.length >= 2) {
+                aiControllers[0].respawn();
+                aiControllers[0].mesh.position.copy(spawnE);
+                
+                aiControllers[1].respawn();
+                aiControllers[1].mesh.position.copy(spawnE2);
+            } else if (aiControllers.length > 0 && aiControllers[0]) {
+                aiControllers[0].respawn();
+                aiControllers[0].mesh.position.copy(spawnE); 
+            }
             
             if (networkPlayerObj) {
-                let spawnE = selectedMap === "Construction" ? new THREE.Vector3(-45, 15, -120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, -60) : new THREE.Vector3(0, 10, -40));
                 networkPlayerObj.position.copy(spawnE);
             }
 
-            if (selectedGameMode !== 'TDM') {
-                matchTimeRemaining = roundTimeLength;
-                updateTimerUI();
-            }
+            matchTimeRemaining = roundTimeLength;
+            updateTimerUI();
         }
 
         function updateTimerUI() {
             if(isGameOver) return;
             let mins = Math.floor(matchTimeRemaining / 60);
             let secs = matchTimeRemaining % 60;
-            let timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-            document.getElementById('match-timer').innerText = timeStr;
-            let tdmTimerEl = document.getElementById('tdm-timer');
-            if (tdmTimerEl) tdmTimerEl.innerText = `TIME: ${timeStr}`;
+            document.getElementById('match-timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         }
 
         // --- MAP BUILDERS ---
@@ -1952,84 +1925,6 @@
                 // Steam Interval for Left Lane
                 setInterval(() => { triggerFrostSteam(); }, 10000);
 
-            } else if (mapType === "Arctic Outpost") {
-                scene.background = new THREE.Color(0xddeeff);
-                scene.fog = new THREE.FogExp2(0xddeeff, 0.005);
-                addObj(groundGeo, new THREE.MeshStandardMaterial({color: 0xeeeeee, roughness: 0.9}), [0,0,0], [-Math.PI/2,0,0]);
-                
-                addObj(new THREE.PlaneGeometry(120 * mapScale, 120 * mapScale), new THREE.MeshStandardMaterial({color: 0x99ccff, roughness: 0.1, metalness: 0.5}), [80 * mapScale, 0.1, 0], [-Math.PI/2,0,0]);
-                
-                addObj(new THREE.CylinderGeometry(12, 15, 60, 16), new THREE.MeshStandardMaterial({color: 0x445566}), [0, 30, 0]);
-                addObj(new THREE.TorusGeometry(16, 2, 8, 16), new THREE.MeshStandardMaterial({color: 0x778899}), [0, 45, 0], [Math.PI/2,0,0]);
-                
-                addObj(new THREE.BoxGeometry(80 * mapScale, 25, 60 * mapScale), new THREE.MeshStandardMaterial({color: 0x334455}), [-70 * mapScale, 12.5, -60 * mapScale]);
-                
-                addObj(new THREE.BoxGeometry(100 * mapScale, 15, 6), new THREE.MeshStandardMaterial({color: 0xaaaaaa}), [0, 7.5, 40 * mapScale]);
-                addObj(new THREE.BoxGeometry(6, 15, 60 * mapScale), new THREE.MeshStandardMaterial({color: 0xaaaaaa}), [-30 * mapScale, 7.5, 60 * mapScale]);
-                
-                addJumpPad([0, 0.5, 30 * mapScale]);
-            } else if (mapType === "Desert Ruins") {
-                scene.background = new THREE.Color(0xffcc88);
-                scene.fog = new THREE.FogExp2(0xffcc88, 0.004);
-                const sandMat = new THREE.MeshStandardMaterial({color: 0xeedd88, roughness: 1.0});
-                const stoneMat = new THREE.MeshStandardMaterial({color: 0xddccaa, roughness: 0.8});
-                addObj(groundGeo, sandMat, [0,0,0], [-Math.PI/2,0,0]);
-                
-                addObj(new THREE.BoxGeometry(60 * mapScale, 15, 60 * mapScale), stoneMat, [0, 7.5, 0]);
-                addObj(new THREE.BoxGeometry(30 * mapScale, 10, 30 * mapScale), new THREE.MeshStandardMaterial({color: 0xccbb99}), [0, 20, 0]);
-                
-                for(let i=-1; i<=1; i+=2) {
-                    for(let j=-1; j<=1; j+=2) {
-                        addObj(new THREE.CylinderGeometry(3, 3, 40, 8), stoneMat, [i*45 * mapScale, 20, j*45 * mapScale]);
-                    }
-                }
-                
-                addObj(new THREE.BoxGeometry(8, 25, 8), stoneMat, [60 * mapScale, 12.5, 60 * mapScale]);
-                addObj(new THREE.BoxGeometry(8, 25, 8), stoneMat, [85 * mapScale, 12.5, 60 * mapScale]);
-                addObj(new THREE.BoxGeometry(35, 8, 8), stoneMat, [72.5 * mapScale, 29, 60 * mapScale]);
-
-                addObj(new THREE.BoxGeometry(120 * mapScale, 15, 5), stoneMat, [0, 7.5, -70 * mapScale]);
-                addJumpPad([0, 0.5, 40 * mapScale]);
-            } else if (mapType === "Harbor Lockdown") {
-                scene.background = new THREE.Color(0x111122);
-                scene.fog = new THREE.FogExp2(0x111122, 0.005);
-                addObj(groundGeo, new THREE.MeshStandardMaterial({color: 0x222233, roughness: 0.7, metalness: 0.3}), [0,0,0], [-Math.PI/2,0,0]);
-                
-                const crateColors = [0xaa2222, 0x22aa22, 0x2222aa, 0xaaaa22, 0xaa5522];
-                for(let i=0; i<30; i++) {
-                    let cMat = new THREE.MeshStandardMaterial({color: crateColors[Math.floor(Math.random()*crateColors.length)], roughness: 0.6});
-                    addObj(new THREE.BoxGeometry(12, 12, 28), cMat, [(Math.random()-0.5)*180 * mapScale, 6, (Math.random()-0.5)*180 * mapScale], [0, Math.random() > 0.5 ? Math.PI/2 : 0, 0]);
-                }
-                
-                addObj(new THREE.BoxGeometry(100 * mapScale, 25, 50 * mapScale), new THREE.MeshStandardMaterial({color: 0x445566}), [0, 12.5, -90 * mapScale]);
-                
-                const craneMat = new THREE.MeshStandardMaterial({color: 0xddaa00, metalness: 0.6});
-                addObj(new THREE.BoxGeometry(8, 70, 8), craneMat, [80 * mapScale, 35, 80 * mapScale]);
-                addObj(new THREE.BoxGeometry(60, 6, 6), craneMat, [60 * mapScale, 67, 80 * mapScale]);
-                
-                addObj(new THREE.BoxGeometry(150 * mapScale, 20, 40 * mapScale), new THREE.MeshStandardMaterial({color: 0x444444}), [-100 * mapScale, 10, 0]);
-                addJumpPad([0, 0.5, 0]);
-            } else if (mapType === "Volcanic Facility") {
-                scene.background = new THREE.Color(0x330000);
-                scene.fog = new THREE.FogExp2(0x330000, 0.006);
-                
-                const lavaMat = new THREE.MeshStandardMaterial({color: 0xff3300, emissive: 0xcc1100, emissiveIntensity: 1.5});
-                addObj(new THREE.BoxGeometry(300 * mapScale, 2, 300 * mapScale), lavaMat, [0, -10, 0]); 
-                
-                addObj(new THREE.BoxGeometry(100 * mapScale, 20, 100 * mapScale), new THREE.MeshStandardMaterial({color: 0x111111}), [-80 * mapScale, 0, 0]);
-                addObj(new THREE.BoxGeometry(100 * mapScale, 20, 100 * mapScale), new THREE.MeshStandardMaterial({color: 0x111111}), [80 * mapScale, 0, 0]);
-                
-                addObj(new THREE.BoxGeometry(80 * mapScale, 2, 12), new THREE.MeshStandardMaterial({color: 0x333333, metalness: 0.8}), [0, 10, 0]);
-                
-                addObj(new THREE.CylinderGeometry(25 * mapScale, 25 * mapScale, 30, 16), new THREE.MeshStandardMaterial({color: 0x222222}), [-80 * mapScale, 15, 0]);
-                addObj(new THREE.CylinderGeometry(8 * mapScale, 8 * mapScale, 40, 16), new THREE.MeshStandardMaterial({color: 0x00ffff, emissive: 0x00aaff, emissiveIntensity: 2}), [-80 * mapScale, 20, 0]);
-                
-                addObj(new THREE.CylinderGeometry(15 * mapScale, 10 * mapScale, 50, 16), new THREE.MeshStandardMaterial({color: 0x1a1a1a}), [80 * mapScale, 25, 40 * mapScale]);
-                addObj(new THREE.CylinderGeometry(15 * mapScale, 10 * mapScale, 50, 16), new THREE.MeshStandardMaterial({color: 0x1a1a1a}), [80 * mapScale, 25, -40 * mapScale]);
-                
-                const pLight = new THREE.PointLight(0xff3300, 20, 300);
-                pLight.position.set(0, 5, 0);
-                scene.add(pLight);
             } else if (mapType === "Playground") {
                 scene.background = new THREE.Color(0x87CEEB); 
                 const gridTex = generateProceduralTexture('grid', '#228B22', '#1b6b1b'); gridTex.repeat.set(30 * mapScale, 30 * mapScale);
@@ -2178,7 +2073,7 @@
                 addJumpPad([0, 0.25, -20 * mapScale]);
             }
 
-            if (mapType !== "Construction" && mapType !== "SubZero" && mapType !== "Volcanic Facility") {
+            if (mapType !== "Construction" && mapType !== "SubZero") {
                 const boundaryMat = new THREE.MeshStandardMaterial({color: 0x303040, roughness: 1.0, flatShading: true});
                 const boundarySize = 160 * mapScale;
                 const boundaryHeight = 100;
@@ -2188,7 +2083,7 @@
                 addObj(new THREE.BoxGeometry(10, boundaryHeight, boundarySize), boundaryMat, [80 * mapScale, 50, 0]);
             }
 
-            if (mapType !== "SubZero" && mapType !== "Volcanic Facility") {
+            if (mapType !== "SubZero") {
                 const rampMat = new THREE.MeshStandardMaterial({color: 0xff007f, flatShading: true});
                 addObj(new THREE.BoxGeometry(20 * mapScale, 2, 40 * mapScale), rampMat, [30 * mapScale, 5, 30 * mapScale], [Math.PI/6, 0, 0]);
                 addObj(new THREE.BoxGeometry(20 * mapScale, 2, 40 * mapScale), rampMat, [-30 * mapScale, 5, -30 * mapScale], [-Math.PI/6, 0, 0]);
@@ -2199,10 +2094,8 @@
 
         // --- SMART AI CLASS ---
         class SmartAI {
-            constructor(dummyMesh, team = 'red') {
+            constructor(dummyMesh, isSecondary = false) {
                 this.mesh = dummyMesh; 
-                this.team = team;
-                this.name = AI_NAMES[Math.floor(Math.random() * AI_NAMES.length)];
                 const diffSettings = difficultySettings[gameSettings.difficulty];
                 this.maxHealth = 300 * diffSettings.aiHealthMult; 
                 this.health = this.maxHealth; 
@@ -2214,6 +2107,7 @@
                 this.moveSpeed = diffSettings.aiSpeed; 
                 this.accuracy = diffSettings.aiAccuracy;
                 this.reactionTime = diffSettings.aiReactionTime;
+                this.isSecondary = isSecondary;
                 this.targetPos = new THREE.Vector3(); 
                 this.isDead = false;
                 this.pickNewTarget();
@@ -2224,9 +2118,8 @@
                 this.hpUI.style.position = 'absolute'; 
                 this.hpUI.style.width = '50px'; 
                 this.hpUI.style.height = '5px';
-                this.hpUI.style.background = this.team === 'blue' ? '#00aaff' : 'red'; 
+                this.hpUI.style.background = isSecondary ? '#ffaa00' : 'red'; 
                 this.hpUI.style.border = '1px solid black';
-                this.hpUI.innerHTML = `<div style="font-size:10px; color:white; text-align:center; position:absolute; top:-15px; width:100%; text-shadow:0 0 2px black;">${this.name}</div>`;
                 document.getElementById('ui-layer').appendChild(this.hpUI);
                 if(document.getElementById('set-outlines') && document.getElementById('set-outlines').checked) {
                     this.hpUI.style.boxShadow = '0 0 5px white';
@@ -2246,21 +2139,14 @@
 
             pickNewTarget() { 
                 let range = (selectedMap === "Construction" ? 240 : 80) * (gameSettings.bigMaps ? 2.5 : 1);
-                
-                // Find nearest enemy target based on team
-                let possibleTargets = [];
-                if (this.team === 'red') possibleTargets.push(controls.getObject()); // Player is always blue
-                
-                aiControllers.forEach(ai => {
-                    if (ai && !ai.isDead && ai.team !== this.team) {
-                        possibleTargets.push(ai.mesh);
+                if (gameSettings.multipleEnemies) {
+                    if (this.isSecondary) {
+                        this.targetPos = (aiControllers[0] && !aiControllers[0].isDead) ? aiControllers[0].mesh.position.clone() : controls.getObject().position.clone();
+                    } else {
+                        this.targetPos = Math.random() > 0.3 
+                            ? controls.getObject().position.clone() 
+                            : ((aiControllers[1] && !aiControllers[1].isDead) ? aiControllers[1].mesh.position.clone() : controls.getObject().position.clone());
                     }
-                });
-
-                if (possibleTargets.length > 0) {
-                    // Pick a random enemy target
-                    let t = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
-                    this.targetPos = t.position.clone();
                     this.targetPos.y = 2.5;
                 } else {
                     this.targetPos.set((Math.random()-0.5)*range, 2.5, (Math.random()-0.5)*range); 
@@ -2270,7 +2156,7 @@
             takeDamage(amt) {
                 if(this.isDead) return;
                 this.health -= amt; 
-                spawnParticles(this.mesh.position, 10, 'spark', this.team === 'blue' ? 0x00aaff : 0xff007f);
+                spawnParticles(this.mesh.position, 10, 'spark', this.isSecondary ? 0xffaa00 : 0xff007f);
                 this.dashCooldown = 0; 
                 if(this.health <= 0) this.die();
             }
@@ -2278,32 +2164,34 @@
             die() {
                 if(this.isDead) return;
                 this.isDead = true;
-                
-                if (selectedGameMode === 'TDM') {
-                    if (this.team === 'red') {
-                        tdmBlueKills++;
-                        document.getElementById('tdm-blue').innerText = tdmBlueKills;
-                    } else {
-                        tdmRedKills++;
-                        document.getElementById('tdm-red').innerText = tdmRedKills;
+                if (this.isSecondary) {
+                    if (!gameSettings.multipleEnemies) {
+                        onPlayerKill();
                     }
-                    if (!checkGameEnd()) {
-                        setTimeout(() => { this.respawn(); }, 5000);
+                    if (gameSettings.multipleEnemies) {
+                        if (aiControllers[0] === this) {
+                            eScore++; 
+                            document.getElementById('e-score').innerText = eScore;
+                            triggerSlowMo();
+                        } else {
+                            onPlayerKill();
+                        }
                     }
                 } else {
-                    if (this.team === 'red') {
-                        onPlayerKill('red');
-                    } else {
+                    if (gameSettings.multipleEnemies && aiControllers[1] && aiControllers[1].health > 0) {
                         eScore++;
                         document.getElementById('e-score').innerText = eScore;
+                        triggerSlowMo();
+                    } else {
+                        onPlayerKill();
                     }
-                    
-                    if(!checkGameEnd()) {
-                        if (selectedGameMode === 'JUG' || gameSettings.multipleEnemies) {
-                            setTimeout(() => { this.respawn(); }, 3000);
-                        } else {
-                            setTimeout(() => { resetRound(); }, 3000);
-                        }
+                }
+                
+                if(!checkGameEnd()) {
+                    if (gameSettings.multipleEnemies) {
+                        setTimeout(() => { this.respawn(); }, 3000);
+                    } else {
+                        setTimeout(() => { resetRound(); }, 3000);
                     }
                 }
             }
@@ -2319,7 +2207,7 @@
                 this.randomizeLoadout();
             }
 
-            update(playerPos, cameraObj, timeScale = 1.0) {
+            update(playerPos, cameraObj, otherAI = null, timeScale = 1.0) {
                 if (this.isDead) {
                     this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, -Math.PI / 2, 0.1 * timeScale);
                     this.hpUI.style.display = 'none';
@@ -2340,9 +2228,10 @@
                     this.takeDamage(this.maxHealth + 100);
                 }
 
-                // Dynamic targeting
-                if (Math.random() < 0.05) this.pickNewTarget();
-                let targetPos = this.targetPos;
+                let targetPos = playerPos;
+                if (gameSettings.multipleEnemies && otherAI && !otherAI.isDead) {
+                    targetPos = otherAI.mesh.position;
+                }
 
                 const distToTarget = this.mesh.position.distanceTo(targetPos);
                 
@@ -2358,7 +2247,6 @@
                     this.hpUI.style.display = 'block';
                     this.hpUI.style.left = `${(screenPos.x * .5 + .5) * window.innerWidth - 25}px`;
                     this.hpUI.style.top = `${(-screenPos.y * .5 + .5) * window.innerHeight}px`;
-                    this.hpUI.querySelector('div').style.display = 'block';
                     this.hpUI.style.width = `${(this.health/this.maxHealth) * 50}px`;
                 } else { this.hpUI.style.display = 'none'; }
 
@@ -2393,6 +2281,7 @@
                     moveDir = new THREE.Vector3(1, 0, 0).applyQuaternion(this.mesh.quaternion).multiplyScalar(Math.sin(performance.now()*0.005) * this.moveSpeed * 2);
                 } else {
                     this.state = "pursue";
+                    this.targetPos = targetPos.clone();
                     this.mesh.lookAt(this.targetPos.x, this.mesh.position.y, this.targetPos.z);
                     moveDir = this.targetPos.clone().sub(this.mesh.position).normalize().multiplyScalar(this.moveSpeed * 1.5);
                 }
@@ -2447,16 +2336,14 @@
                     SoundEngine.shoot("melee");
                     weaponGroup.children[0].rotation.x = -1.2; 
                     if (this.mesh.position.distanceTo(targetPos) < 6) {
-                        if (targetPos === controls.getObject().position && this.team !== 'blue') {
+                        if (targetPos === controls.getObject().position) {
                             takePlayerDamage(config.damage, this);
-                        } else {
-                            // Find which AI is at target pos
-                            aiControllers.forEach(ai => {
-                                if (ai && !ai.isDead && ai.mesh.position.distanceTo(targetPos) < 2 && ai.team !== this.team) {
-                                    SoundEngine.hit(false);
-                                    ai.takeDamage(config.damage);
-                                }
-                            });
+                        } else if (gameSettings.multipleEnemies && aiControllers.length > 0) {
+                            const otherAI = this.isSecondary ? aiControllers[0] : (aiControllers[1] || null);
+                            if (otherAI && !otherAI.isDead) {
+                                SoundEngine.hit(false);
+                                otherAI.takeDamage(config.damage);
+                            }
                         }
                     }
                     setTimeout(() => { if(weaponGroup.children[0]) weaponGroup.children[0].rotation.x = 0; }, 200);
@@ -2515,10 +2402,14 @@
             const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 3, 4, 8), new THREE.MeshStandardMaterial({color: color}));
             const head = new THREE.Mesh(new THREE.SphereGeometry(0.7), new THREE.MeshStandardMaterial({color: 0x555555}));
             head.position.y = 2.5; 
-
-            group.add(body, head);
-            group.userData = { head: head };
-
+            
+            const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 2, 4, 8), new THREE.MeshStandardMaterial({color: color}));
+            armL.position.set(-1.6, 0.5, 0);
+            const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 2, 4, 8), new THREE.MeshStandardMaterial({color: color}));
+            armR.position.set(1.6, 0.5, 0);
+            
+            group.add(body, head, armL, armR);
+            group.userData = { armL: armL, armR: armR, head: head };
             return group;
         }
 
@@ -2584,58 +2475,23 @@
             });
 
             let spawnP = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, 60) : new THREE.Vector3(0, 10, 40));
-            
-            if (isMultiplayer) {
-                dummy = createCharacterModel(0xff007f);
-                let spawnE = selectedMap === "Construction" ? new THREE.Vector3(-45, 15, -120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, -60) : new THREE.Vector3(0, 10, -40));
-                dummy.position.copy(spawnE); scene.add(dummy);
-                networkPlayerObj = dummy;
-                aiController = null;
+            let spawnE = selectedMap === "Construction" ? new THREE.Vector3(-45, 15, -120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, -60) : new THREE.Vector3(0, 10, -40));
+
+            dummy = createCharacterModel(0xff007f);
+            dummy.position.copy(spawnE); scene.add(dummy);
+
+            if (gameSettings.multipleEnemies) {
+                dummy2 = createCharacterModel(0xffaa00);
+                let spawnE2 = selectedMap === "Construction" ? new THREE.Vector3(45, 15, -120) : new THREE.Vector3(30, 10, -30);
+                dummy2.position.copy(spawnE2); scene.add(dummy2);
+                aiControllers.push(new SmartAI(dummy, false));
+                aiControllers.push(new SmartAI(dummy2, true));
             } else {
-                if (selectedGameMode === 'TDM') {
-                    // Randomize TDM timer 1-3 mins (60 to 180 seconds)
-                    roundTimeLength = Math.floor(Math.random() * (180 - 60 + 1)) + 60; 
-                    matchTimeRemaining = roundTimeLength;
-
-                    document.getElementById('tdm-scoreboard').style.display = 'block';
-                    document.getElementById('versus-hud').style.display = 'none';
-
-                    // Spawn Blue Team (Player is 1, so size-1 AI)
-                    for(let i=0; i < tdmSize-1; i++) {
-                        let aDummy = createCharacterModel(0x00aaff);
-                        aDummy.position.set((Math.random()-0.5)*80, 10, (Math.random()-0.5)*80);
-                        scene.add(aDummy);
-                        aiControllers.push(new SmartAI(aDummy, 'blue'));
-                    }
-                    // Spawn Red Team
-                    for(let i=0; i < tdmSize; i++) {
-                        let aDummy = createCharacterModel(0xff0000);
-                        aDummy.position.set((Math.random()-0.5)*80, 10, (Math.random()-0.5)*80);
-                        scene.add(aDummy);
-                        aiControllers.push(new SmartAI(aDummy, 'red'));
-                    }
-                } else if (selectedGameMode === 'JUG') {
-                    document.getElementById('versus-hud').style.display = 'none';
-                    // Spawn 20 enemies against Juggernaut Player
-                    for(let i=0; i<20; i++) {
-                        let aDummy = createCharacterModel(0xff0000);
-                        aDummy.position.set((Math.random()-0.5)*150, 10, (Math.random()-0.5)*150);
-                        scene.add(aDummy);
-                        aiControllers.push(new SmartAI(aDummy, 'red'));
-                    }
+                if (isMultiplayer) {
+                    networkPlayerObj = dummy;
+                    aiController = null;
                 } else {
-                    // Standard 1v1
-                    dummy = createCharacterModel(0xff007f);
-                    let spawnE = selectedMap === "Construction" ? new THREE.Vector3(-45, 15, -120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, -60) : new THREE.Vector3(0, 10, -40));
-                    dummy.position.copy(spawnE); scene.add(dummy);
-                    aiControllers.push(new SmartAI(dummy, 'red'));
-                    
-                    if (gameSettings.multipleEnemies) {
-                        dummy2 = createCharacterModel(0xffaa00);
-                        let spawnE2 = selectedMap === "Construction" ? new THREE.Vector3(45, 15, -120) : new THREE.Vector3(30, 10, -30);
-                        dummy2.position.copy(spawnE2); scene.add(dummy2);
-                        aiControllers.push(new SmartAI(dummy2, 'red'));
-                    }
+                    aiControllers.push(new SmartAI(dummy, false));
                 }
             }
 
@@ -2671,11 +2527,7 @@
                             peerConn.send({ type: 'timer_sync', time: matchTimeRemaining });
                         }
                     } else if(matchTimeRemaining === 0 && !isGameOver) {
-                        if (selectedGameMode === 'TDM') {
-                            checkGameEnd();
-                        } else {
-                            resetRound();
-                        }
+                        resetRound();
                     }
                 }
             }, 1000);
@@ -3108,26 +2960,19 @@
             if (config.type === "melee") {
                 canShoot = false; weaponGroup.children[0].rotation.x = -1.2;
                 SoundEngine.shoot("melee");
-                
-                let hitAny = false;
-                if (isMultiplayer && targetObj && controls.getObject().position.distanceTo(targetObj.position) < 8) {
-                    hitAny = true;
-                    if (peerConn && peerConn.open) peerConn.send({ type: 'hit', damage: config.damage });
-                } else {
-                    aiControllers.forEach(ai => {
-                        if (ai && !ai.isDead && ai.team !== 'blue' && controls.getObject().position.distanceTo(ai.mesh.position) < 8) {
-                            hitAny = true;
-                            ai.takeDamage(config.damage);
-                        }
-                    });
-                }
-                
-                if (hitAny) {
+                if (targetObj && controls.getObject().position.distanceTo(targetObj.position) < 8) {
                     SoundEngine.hit(false);
                     pStats.shotsHit++;
                     pStats.damageDealt += config.damage;
+                    if (document.getElementById('set-dmg-nums').checked) {
+                        damageTexts.push(new DamageNumber(targetObj.position.clone().add(new THREE.Vector3(0,2,0)), config.damage)); 
+                    }
+                    if (isMultiplayer) {
+                        if (peerConn && peerConn.open) peerConn.send({ type: 'hit', damage: config.damage });
+                    } else {
+                        aiControllers.forEach(ai => { if(ai && ai.mesh === targetObj && !ai.isDead) ai.takeDamage(config.damage); });
+                    }
                 }
-
                 setTimeout(() => { weaponGroup.children[0].rotation.x = 0; canShoot = true; }, 1000 * (60 / config.rpm)); return;
             }
 
@@ -3264,7 +3109,7 @@
                 activeAOEs.push({ pos, type: 'fire', color: 0xff4400, life: 30 * 60, light: fireLight, damage: config.aoeDmg, radius: config.radius || 15, source: sourceOwner });
             } 
             else if (name === "Flare Gun") {
-                const flareLight = new THREE.PointLight(0xff0000,20, 250); flareLight.position.copy(pos); scene.add(flareLight);
+                const flareLight = new THREE.PointLight(0xff0000, 20, 250); flareLight.position.copy(pos); scene.add(flareLight);
                 activeAOEs.push({ pos, type: 'flare_core', color: 0xff0000, life: 30 * 60, light: flareLight, damage: config.aoeDmg, radius: config.radius || 20, source: sourceOwner });
             }
             else if (name === "Flashbang") {
@@ -3275,7 +3120,7 @@
                 }
             }
             else if (name === "Smoke Screen") { spawnParticles(pos, 50, 'smoke', 0xcccccc); }
-            else if (name === "Shock Trap" || name === "Bear Trap") {
+            else if (name === "Shock Trap") {
                 spawnParticles(pos, 50, 'spark', 0x00ffff);
                 const light = new THREE.PointLight(0x00ffff, 5, 200); light.position.copy(pos); scene.add(light);
                 activeAOEs.push({ pos, type: 'spark', color: 0x00ffff, life: 5 * 60, light: light, damage: config.aoeDmg, radius: config.radius || 12, source: sourceOwner });
@@ -3345,58 +3190,33 @@
             updateBloodUI();
             document.getElementById('hp-bar').style.width = `${Math.max(0, (health/maxHealth)*100)}%`;
             if (health <= 0) { 
+                eScore++; 
                 pStats.deaths++;
+                document.getElementById('e-score').innerText = eScore; 
+                triggerSlowMo();
                 
-                if (selectedGameMode === 'TDM') {
-                    tdmRedKills++;
-                    document.getElementById('tdm-red').innerText = tdmRedKills;
-                    
-                    document.getElementById('round-announcement').innerHTML = "YOU DIED<br><span style='font-size:1.5rem;color:#ccc;'>RESPAWNING IN 5 SECONDS...</span>";
-                    document.getElementById('round-announcement').style.opacity = 1;
-                    
-                    isSpectating = true;
-                    weaponGroup.visible = false;
-                    
-                    setTimeout(() => {
-                        if (isGameOver) return;
-                        isSpectating = false;
-                        weaponGroup.visible = true;
-                        health = maxHealth;
-                        document.getElementById('hp-bar').style.width = '100%';
-                        updateBloodUI();
-                        let spawnP = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, 60) : new THREE.Vector3(0, 10, 40));
-                        controls.getObject().position.copy(spawnP);
-                        document.getElementById('round-announcement').style.opacity = 0;
-                    }, 5000);
-
-                } else {
-                    eScore++;
-                    document.getElementById('e-score').innerText = eScore; 
-                    triggerSlowMo();
-                    
-                    if (isMultiplayer && peerConn && peerConn.open) {
-                        peerConn.send({ type: 'death' });
-                    }
-                    
-                    if(!checkGameEnd()) {
-                        if (isMultiplayer) {
-                            isSpectating = true;
-                            weaponGroup.visible = false;
-                            document.getElementById('round-announcement').innerHTML = "YOU DIED<br><span style='font-size:1.5rem;color:#ccc;'>SPECTATOR FREECAM (WASD)</span>";
-                            document.getElementById('round-announcement').style.opacity = 1;
-                            setTimeout(() => {
-                                resetRound();
-                            }, 10000);
-                        } else {
-                            isKillCam = true;
-                            killCamTarget = source ? (source.mesh || source) : (aiControllers[0] ? aiControllers[0].mesh : dummy);
-                            killCamAngle = 0;
-                            weaponGroup.visible = false;
-                            
-                            setTimeout(() => {
-                                resetRound();
-                            }, 3000);
-                        }
+                if (isMultiplayer && peerConn && peerConn.open) {
+                    peerConn.send({ type: 'death' });
+                }
+                
+                if(!checkGameEnd()) {
+                    if (isMultiplayer) {
+                        isSpectating = true;
+                        weaponGroup.visible = false;
+                        document.getElementById('round-announcement').innerHTML = "YOU DIED<br><span style='font-size:1.5rem;color:#ccc;'>SPECTATOR FREECAM (WASD)</span>";
+                        document.getElementById('round-announcement').style.opacity = 1;
+                        setTimeout(() => {
+                            resetRound();
+                        }, 10000);
+                    } else {
+                        isKillCam = true;
+                        killCamTarget = source ? (source.mesh || source) : (aiControllers[0] ? aiControllers[0].mesh : dummy);
+                        killCamAngle = 0;
+                        weaponGroup.visible = false;
+                        
+                        setTimeout(() => {
+                            resetRound();
+                        }, 3000);
                     }
                 } 
             }
@@ -3473,7 +3293,12 @@
 
             aiControllers.forEach(ai => {
                 if (ai) {
-                    ai.update(controls.getObject().position, camera, timeScale);
+                    if (gameSettings.multipleEnemies && aiControllers.length >= 2) {
+                        const otherAI = ai === aiControllers[0] ? aiControllers[1] : aiControllers[0];
+                        ai.update(controls.getObject().position, camera, otherAI, timeScale);
+                    } else {
+                        ai.update(controls.getObject().position, camera, null, timeScale);
+                    }
                 }
             });
 
@@ -3768,7 +3593,7 @@
 
                 let hitAny = false;
                 aiControllers.forEach(ai => {
-                    if(ai && !ai.isDead && ai.team !== 'blue' && b.position.distanceTo(ai.mesh.position) < (b.userData.type === "rocket" ? 5.0 : 3.5)) {
+                    if(ai && !ai.isDead && b.position.distanceTo(ai.mesh.position) < (b.userData.type === "rocket" ? 5.0 : 3.5)) {
                         if (b.userData.type === "rocket") {
                             ai.takeDamage(b.userData.damage);
                             if (document.getElementById('set-dmg-nums').checked) {
@@ -3792,7 +3617,7 @@
                                 }
                             }
 
-if (b.userData.perk === "Head-Hunter") {
+                            if (b.userData.perk === "Head-Hunter") {
                                 finalDmg = isHeadshot ? finalDmg * 2.0 : finalDmg * 0.5; 
                             } else {
                                 finalDmg = isHeadshot ? finalDmg * 1.5 : finalDmg; 
