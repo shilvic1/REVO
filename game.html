@@ -466,6 +466,7 @@
         let airlockDoors = [];
         let elevators = [];
         let sustainedFireHeat = 0;
+        let isPlayerJuggernaut = false;
 
         function addKillFeed(killer, victim, isHeadshot) {
             const feed = document.getElementById('kill-feed');
@@ -836,7 +837,9 @@
         function openSettingsModal() { settingsModal.style.display = 'flex'; }
         function closeSettingsModal() {
             settingsModal.style.display = 'none';
-            localStorage.setItem('revoGameSettings', JSON.stringify(gameSettings));
+            try {
+                localStorage.setItem('revoGameSettings', JSON.stringify(gameSettings));
+            } catch(e) { console.error("Could not save settings:", e); }
         }
 
         mapSettingsBtn.addEventListener('click', openSettingsModal);
@@ -859,16 +862,21 @@
             gameSettings.autoReload = autoReloadToggle.checked;
         });
 
-        const savedSettings = localStorage.getItem('revoGameSettings');
-        if (savedSettings) {
-            const parsed = JSON.parse(savedSettings);
-            Object.assign(gameSettings, parsed);
-            difficultyBtns.forEach(btn => {
-                if (btn.dataset.difficulty === gameSettings.difficulty) btn.classList.add('selected');
-                else btn.classList.remove('selected');
-            });
-            bigMapsToggle.checked = gameSettings.bigMaps;
-            autoReloadToggle.checked = gameSettings.autoReload || false;
+        try {
+            const savedSettings = localStorage.getItem('revoGameSettings');
+            if (savedSettings) {
+                const parsed = JSON.parse(savedSettings);
+                Object.assign(gameSettings, parsed);
+                difficultyBtns.forEach(btn => {
+                    if (btn.dataset.difficulty === gameSettings.difficulty) btn.classList.add('selected');
+                    else btn.classList.remove('selected');
+                });
+                bigMapsToggle.checked = gameSettings.bigMaps;
+                autoReloadToggle.checked = gameSettings.autoReload || false;
+            }
+        } catch(e) { 
+            console.error("Local Storage Error. Discarding corrupted settings.", e);
+            localStorage.removeItem('revoGameSettings');
         }
 
         // --- LOG UI LOGIC ---
@@ -970,7 +978,7 @@
                 fpsDisplay.style.display = 'none';
             }
 
-            if (controls) {
+            if (typeof controls !== 'undefined' && controls) {
                 const sens = parseFloat(document.getElementById('set-sens').value);
                 const adsSens = parseFloat(document.getElementById('set-ads-sens').value);
                 controls.pointerSpeed = sens * (isScoping ? adsSens : 1.0);
@@ -978,9 +986,13 @@
             
             // HUD Outlines
             if (document.getElementById('set-outlines').checked) {
-                aiControllers.forEach(ai => { if (ai && ai.hpUI) ai.hpUI.style.boxShadow = '0 0 5px white'; });
+                if(typeof aiControllers !== 'undefined') {
+                    aiControllers.forEach(ai => { if (ai && ai.hpUI) ai.hpUI.style.boxShadow = '0 0 5px white'; });
+                }
             } else {
-                aiControllers.forEach(ai => { if (ai && ai.hpUI) ai.hpUI.style.boxShadow = 'none'; });
+                if(typeof aiControllers !== 'undefined') {
+                    aiControllers.forEach(ai => { if (ai && ai.hpUI) ai.hpUI.style.boxShadow = 'none'; });
+                }
             }
         }
 
@@ -990,31 +1002,38 @@
                 if (input.type === 'checkbox') config[input.id] = input.checked;
                 else config[input.id] = input.value;
             });
-            localStorage.setItem('revoIngameSettings', JSON.stringify(config));
+            try {
+                localStorage.setItem('revoIngameSettings', JSON.stringify(config));
+            } catch(e) { console.error("Could not save ingame settings:", e); }
         }
 
         ingameInputs.forEach(input => {
             input.addEventListener('input', (e) => {
-                updateIngameSettings(e);
-                saveIngameSettings();
+                try { updateIngameSettings(e); saveIngameSettings(); } catch(err) {}
             });
             input.addEventListener('change', (e) => {
-                updateIngameSettings(e);
-                saveIngameSettings();
+                try { updateIngameSettings(e); saveIngameSettings(); } catch(err) {}
             });
         });
 
         function loadIngameSettings() {
-            const saved = localStorage.getItem('revoIngameSettings');
-            if (saved) {
-                const config = JSON.parse(saved);
-                ingameInputs.forEach(input => {
-                    if (config[input.id] !== undefined) {
-                        if (input.type === 'checkbox') input.checked = config[input.id];
-                        else input.value = config[input.id];
-                        updateIngameSettings({target: input});
-                    }
-                });
+            try {
+                const saved = localStorage.getItem('revoIngameSettings');
+                if (saved) {
+                    const config = JSON.parse(saved);
+                    ingameInputs.forEach(input => {
+                        if (config[input.id] !== undefined) {
+                            if (input.type === 'checkbox') input.checked = config[input.id];
+                            else input.value = config[input.id];
+                            if(typeof updateIngameSettings === 'function') {
+                                try { updateIngameSettings({target: input}); } catch(e) {}
+                            }
+                        }
+                    });
+                }
+            } catch(e) {
+                console.error("Local Storage Error. Discarding corrupted ingame settings.", e);
+                localStorage.removeItem('revoIngameSettings');
             }
         }
         loadIngameSettings();
@@ -1583,7 +1602,13 @@
                 document.getElementById('ui-layer').style.display = 'block';
                 
                 maxHealth = (selectedItems[4] === "Adrenaline Rush") ? 255 : 300;
-                if (activeGamemode === 'JUGGERNAUT') maxHealth = 500;
+                if (activeGamemode === 'JUGGERNAUT') {
+                    isPlayerJuggernaut = Math.random() < 0.25; // 25% chance for player to be the Juggernaut
+                    if (isPlayerJuggernaut) {
+                        maxHealth = 2500; // Buffed Juggernaut health
+                        selectedItems = ["Buffed LMG", "Hand Cannon", "Custom Bear Trap", "Brass Knuckles", "Adrenaline Rush"];
+                    }
+                }
                 health = maxHealth;
 
                 selectedItems.forEach((name, i) => {
@@ -1664,7 +1689,11 @@
             weaponGroup.visible = true;
             
             let spawnP = selectedMap === "Construction" ? new THREE.Vector3(45, 15, 120) : (selectedMap === "SubZero" ? new THREE.Vector3(0, 5, 60) : new THREE.Vector3(0, 10, 40));
-            
+            if (activeGamemode === 'JUGGERNAUT' && !isPlayerJuggernaut) {
+                spawnP.set(0, 20, -60);
+            } else if (activeGamemode === 'JUGGERNAUT' && isPlayerJuggernaut) {
+                spawnP.set(0, 20, 80);
+            }
             controls.getObject().position.copy(spawnP);
             velocity.set(0,0,0);
             
@@ -2291,7 +2320,19 @@
                 this.isDead = false;
                 this.mesh.rotation.x = 0;
                 let range = (selectedMap === "Construction" ? 240 : 80) * (gameSettings.bigMaps || activeGamemode.includes('TDM') ? 2.5 : 1);
-                this.mesh.position.set((Math.random()-0.5)*range, 20, (Math.random()-0.5)*range);
+                
+                if (activeGamemode === 'JUGGERNAUT') {
+                    if (this.team === 'red' && this.maxHealth >= 2000) {
+                        this.mesh.position.set(0, 10, 80);
+                    } else if (isPlayerJuggernaut) {
+                        this.mesh.position.set((Math.random()-0.5)*60, 10, -60);
+                    } else {
+                        this.mesh.position.set((Math.random()-0.5)*60, 10, -60);
+                    }
+                } else {
+                    this.mesh.position.set((Math.random()-0.5)*range, 20, (Math.random()-0.5)*range);
+                }
+
                 this.pickNewTarget();
                 this.randomizeLoadout();
             }
@@ -2596,14 +2637,39 @@
                     aiControllers.push(new SmartAI(dRed, true));
                 }
             } else if (activeGamemode === 'JUGGERNAUT') {
-                // Juggernaut Setup (Player is Juggernaut vs 20 enemies)
+                // Juggernaut Setup (Player is Juggernaut vs 20 enemies OR random AI is Juggernaut)
+                let aiJuggernautIndex = isPlayerJuggernaut ? -1 : Math.floor(Math.random() * 20);
                 for (let i = 0; i < 20; i++) {
-                    let dRed = createCharacterModel(0xff007f);
-                    dRed.position.set((Math.random()-0.5)*100, 10, (Math.random()-0.5)*100);
+                    let isThisJuggernaut = (i === aiJuggernautIndex);
+                    let teamColor = isThisJuggernaut ? 0xffaa00 : (isPlayerJuggernaut ? 0xff007f : 0x00aaff);
+                    let dRed = createCharacterModel(teamColor);
+                    
+                    if (isThisJuggernaut) {
+                        dRed.scale.set(1.5, 1.5, 1.5); // Bigger Juggernaut
+                        dRed.position.set(0, 10, 80); // Opposite side
+                    } else {
+                        if (isPlayerJuggernaut) {
+                            dRed.position.set((Math.random()-0.5)*60, 10, -60); // Enemies spawn opposite to player
+                        } else {
+                            dRed.position.set((Math.random()-0.5)*60, 10, -60); // Friendly AI spawns with player
+                        }
+                    }
+                    
                     scene.add(dRed);
-                    aiControllers.push(new SmartAI(dRed, true));
+                    let ai = new SmartAI(dRed, isPlayerJuggernaut || isThisJuggernaut); // True means RED team, False means BLUE team
+                    
+                    if (isThisJuggernaut) {
+                        ai.team = 'red';
+                        ai.maxHealth = 2500;
+                        ai.health = 2500;
+                    } else if (!isPlayerJuggernaut) {
+                        ai.team = 'blue'; // Teammates with player
+                    } else {
+                        ai.team = 'red'; // Enemy to player juggernaut
+                    }
+                    
+                    aiControllers.push(ai);
                 }
-                selectedItems = ["Buffed LMG", "Shorty", "Custom Bear Trap", "Brass Knuckles", "Adrenaline Rush"];
             } else {
                 // Default 1v1
                 dummy = createCharacterModel(0xff007f);
@@ -2629,6 +2695,11 @@
 
             weaponGroup = new THREE.Group(); camera.add(weaponGroup); scene.add(controls.getObject());
             let spawnP = new THREE.Vector3(0, 20, 40); 
+            if (activeGamemode === 'JUGGERNAUT' && !isPlayerJuggernaut) {
+                spawnP.set(0, 20, -60); // Spawn with the blue team
+            } else if (activeGamemode === 'JUGGERNAUT' && isPlayerJuggernaut) {
+                spawnP.set(0, 20, 80); // Spawn opposite to enemies
+            }
             controls.getObject().position.copy(spawnP); 
             
             const sens = parseFloat(document.getElementById('set-sens').value);
@@ -3158,13 +3229,12 @@
                 if (config.type !== "melee" && config.type !== "obs" && config.type !== "rpg") {
                     const barrelTipLocal = new THREE.Vector3(0.8, -0.6, -2.5);
                     const barrelTipWorld = barrelTipLocal.clone().applyMatrix4(camera.matrixWorld);
-                    muzzleLight.position.copy(barrelTipWorld);
-                    muzzleLight.intensity = 5;
+                    // muzzleLight.intensity = 5; // Removed muzzle flash as requested
                     if(document.getElementById('set-vfx') && document.getElementById('set-vfx').checked) {
                         muzzleSprite.position.copy(barrelTipWorld);
-                        muzzleSprite.material.opacity = 1;
-                        muzzleSprite.scale.set(1.5 + Math.random()*1.0, 1.5 + Math.random()*1.0, 1);
-                        muzzleSprite.material.rotation = Math.random() * Math.PI * 2;
+                        // muzzleSprite.material.opacity = 1; // Removed muzzle flash as requested
+                        // muzzleSprite.scale.set(1.5 + Math.random()*1.0, 1.5 + Math.random()*1.0, 1);
+                        // muzzleSprite.material.rotation = Math.random() * Math.PI * 2;
                     }
                 }
 
@@ -3355,8 +3425,7 @@
                 triggerSlowMo();
 
                 if (activeGamemode.startsWith('TDM')) {
-                    eScore++; // Red team scores
-                    document.getElementById('tdm-red-score').innerText = eScore;
+                    eScore++;document.getElementById('tdm-red-score').innerText = eScore;
                     isSpectating = true;
                     weaponGroup.visible = false;
                     document.getElementById('round-announcement').innerHTML = "YOU DIED<br><span style='font-size:1.5rem;color:#ccc;'>RESPAWNING IN 5...</span>";
@@ -3367,7 +3436,15 @@
                         weaponGroup.visible = true;
                         health = maxHealth;
                         document.getElementById('hp-bar').style.width = '100%';
-                        controls.getObject().position.set((Math.random()-0.5)*50, 20, (Math.random()-0.5)*50);
+                        
+                        // Juggernaut & TDM Respawn Spacing
+                        let spawnP = new THREE.Vector3((Math.random()-0.5)*50, 20, (Math.random()-0.5)*50);
+                        if (activeGamemode === 'JUGGERNAUT') {
+                            if (isPlayerJuggernaut) spawnP.set(0, 20, 80);
+                            else spawnP.set((Math.random()-0.5)*60, 20, -60);
+                        }
+
+                        controls.getObject().position.copy(spawnP);
                         document.getElementById('round-announcement').style.opacity = 0;
                     }, 5000);
                     return; // No rounds in TDM
@@ -3417,7 +3494,7 @@
                 fpsFrames = 0; lastFPSUpdate = time;
             }
 
-            // Sustained Muzzle Smoke Logic
+            // Sustained Muzzle Smoke Logic (Flash is removed, smoke remains for effect)
             if (sustainedFireHeat > 0) {
                 sustainedFireHeat -= delta * 60;
                 if (sustainedFireHeat > 20 && document.getElementById('set-vfx').checked && weaponGroup.children.length > 0 && Math.random() < 0.2) {
@@ -4078,6 +4155,7 @@
             let bobAmt = document.getElementById('set-bob') ? document.getElementById('set-bob').value / 100 : 1;
             weaponGroup.position.y = Math.sin(time * 0.005) * 0.01 * bobAmt; weaponGroup.position.x = Math.cos(time * 0.003) * 0.01 * bobAmt;
 
+            // Flash intensity overrides are removed, but checking and lerping intensity down prevents lighting errors
             if (muzzleLight && muzzleLight.intensity > 0) muzzleLight.intensity = THREE.MathUtils.lerp(muzzleLight.intensity, 0, 0.2);
             if (muzzleSprite && muzzleSprite.material.opacity > 0) muzzleSprite.material.opacity = THREE.MathUtils.lerp(muzzleSprite.material.opacity, 0, 0.2);
 
