@@ -412,7 +412,7 @@
         
         <div id="versus-hud">
             <div id="p-score" class="vs-score">0</div>
-            <div id="match-timer">2:30</div>
+            <div id="match-timer">2:50</div>
             <div id="e-score" class="vs-score">0</div>
         </div>
 
@@ -476,7 +476,7 @@
             const feed = document.getElementById('kill-feed');
             const entry = document.createElement('div');
             entry.className = 'kill-entry';
-            entry.innerHTML = `<span style="color:#00ffcc">${killer}</span> ${isHeadshot ? '💥' : '🔪'} <span style="color:#ff007f">${victim}</span>`;
+            entry.innerHTML = `<span style="color:#00ffcc">${killer}</span> ${isHeadshot ? '徴' : '八'} <span style="color:#ff007f">${victim}</span>`;
             feed.appendChild(entry);
             setTimeout(() => { entry.style.opacity = 0; setTimeout(() => entry.remove(), 1000); }, 4000);
         }
@@ -894,7 +894,7 @@
         const logPages = [
             "CLASSIFIED FILE: MISSION OVERSEER\n\nTarget: Overseer Stewart. \n\nObservations: The Overseer's rule over this facility has grown increasingly hostile and erratic. We have documented severe bias in her enforcement of facility protocols.",
             "Specifically, she exhibits a deep-seated hatred for the workers in Sector 1 (formerly designated as Table 1). Her despising of them seems rooted in pure malice and prejudice.",
-            "What makes this truly intolerable is the blatant hypocrisy. The other sectors are infinitely worse—chaotic, deafeningly loud, and completely undisciplined. Yet, Overseer Stewart ignores them entirely to focus her wrath solely on Sector 1.",
+            "What makes this truly intolerable is the blatant hypocrisy. The other sectors are infinitely worse窶把haotic, deafeningly loud, and completely undisciplined. Yet, Overseer Stewart ignores them entirely to focus her wrath solely on Sector 1.",
             "We can no longer stand by while Sector 1 bears the brunt of her tyrannical behavior. This data log serves as our official mission briefing. The regime of Overseer Stewart ends today. Retrieve the data core at all costs."
         ];
 
@@ -1790,7 +1790,7 @@
             velocity.set(0,0,0);
             
             aiControllers.forEach(ai => {
-                if (ai && !ai.isDead) {
+                if (ai) {
                     ai.respawn();
                 }
             });
@@ -2445,14 +2445,19 @@
                     if (this.team === 'red') {
                         pScore++;
                         document.getElementById('tdm-blue-score').innerText = pScore;
+                        pStats.kills++; // Ensure stats track correctly in TDM
                     } else {
                         eScore++;
                         document.getElementById('tdm-red-score').innerText = eScore;
                     }
                     setTimeout(() => { this.respawn(); }, 5000);
                 } else {
-                    eScore++;
-                    document.getElementById('e-score').innerText = eScore;
+                    pScore++;
+                    pStats.kills++; // Ensure stats track correctly in 1v1
+                    document.getElementById('p-score').innerText = pScore;
+                    document.getElementById('round-announcement').innerHTML = "ROUND WON";
+                    document.getElementById('round-announcement').style.color = "#00ffcc";
+                    document.getElementById('round-announcement').style.opacity = 1;
                     triggerSlowMo();
                     if(!checkGameEnd()) {
                         setTimeout(() => { resetRound(); }, 3000);
@@ -2475,6 +2480,8 @@
                     } else {
                         this.mesh.position.set((Math.random()-0.5)*60, 10, -60);
                     }
+                } else if (activeGamemode === '1v1') {
+                    this.mesh.position.set(0, 10, -40); // 1v1 fixed spawn
                 } else {
                     this.mesh.position.set((Math.random()-0.5)*range, 20, (Math.random()-0.5)*range);
                 }
@@ -2874,7 +2881,7 @@
                 document.getElementById('tdm-ui').style.display = 'none';
                 document.getElementById('versus-hud').style.display = 'flex';
             } else {
-                roundTimeLength = Math.floor(Math.random() * (420 - 300 + 1)) + 300; // 5-7 mins
+                roundTimeLength = 170; // 2:50 minutes for 1v1
                 document.getElementById('tdm-ui').style.display = 'none';
                 document.getElementById('versus-hud').style.display = 'flex';
             }
@@ -3274,7 +3281,7 @@
                 const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3), new THREE.MeshStandardMaterial({color: 0x8b4513}));
                 pole.rotation.x = Math.PI / 2;
                 pole.position.set(0, 0, -1.5);
-                const string = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.5), new THREE.MeshStandardMaterial({color: 0xffffff}));
+                const string = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.5), new THREE.MeshStandardMaterial({color: 0xffff00}));
                 string.position.set(0, -0.75, -3);
                 weaponInner.add(pole, string);
             } else if (config.type === "rpg") {
@@ -3809,6 +3816,9 @@
 
                 eScore++; 
                 document.getElementById('e-score').innerText = eScore; 
+                document.getElementById('round-announcement').innerHTML = "ROUND LOST";
+                document.getElementById('round-announcement').style.color = "#ff007f";
+                document.getElementById('round-announcement').style.opacity = 1;
                 
                 if(!checkGameEnd()) {
                     isKillCam = true;
