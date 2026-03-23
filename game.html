@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>REVO - Advanced Combat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@1,900&display=swap');
@@ -246,6 +247,35 @@
         .kill-entry { background: rgba(0,0,0,0.6); padding: 5px 10px; margin-bottom: 5px; border-radius: 4px; border-left: 3px solid #ff007f; color: white; opacity: 1; transition: opacity 1s; font-family: 'Montserrat', sans-serif;}
         #hit-indicators { position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; transform: translate(-50%, -50%); pointer-events: none; z-index: 15; }
         .hit-arc { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; border: 15px solid transparent; border-top-color: rgba(255,0,0,0.8); opacity: 0; transition: opacity 0.5s; transform-origin: center; box-sizing: border-box; filter: blur(2px);}
+
+        /* MOBILE CONTROLS */
+        #mobile-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9000; display: none; }
+        .joystick-zone { position: absolute; bottom: 60px; width: 140px; height: 140px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; pointer-events: auto; touch-action: none; }
+        #stick-left { left: 40px; }
+        
+        /* MODIFIED RIGHT STICK (SWIPE AREA) */
+        #stick-right { right: 0; bottom: 0; top: 0; width: 50vw; height: 100vh; background: transparent; border: none; border-radius: 0; z-index: 1; pointer-events: auto; touch-action: none; position: absolute; }
+        #stick-right .stick-knob { display: none; } /* Hidden entirely */
+
+        .stick-knob { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; background: rgba(0, 255, 204, 0.4); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 10px rgba(0,255,204,0.3); }
+        
+        /* UPDATED MOBILE BUTTONS TO REST ABOVE THE SWIPE AREA */
+        .mobile-btn { position: absolute; width: 60px; height: 60px; background: rgba(0,0,0,0.5); border: 2px solid #555; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; pointer-events: auto; user-select: none; font-weight: bold; font-size: 14px; touch-action: none; transition: 0.1s; z-index: 10; }
+        .mobile-btn:active { background: #ff007f; border-color: #ff007f; transform: scale(0.95); }
+        
+        #btn-fire { bottom: 220px; right: 40px; width: 70px; height: 70px; border-color: #ff0000; background: rgba(255,0,0,0.2); }
+        #btn-scope { bottom: 140px; right: 200px; }
+        #btn-reload { bottom: 220px; right: 130px; }
+        #btn-jump { bottom: 60px; right: 200px; }
+        #btn-sprint { bottom: 220px; right: 220px; }
+        
+        .weapon-slots { pointer-events: auto; cursor: pointer; }
+        .slot { pointer-events: auto; }
+        
+        /* Hide mobile UI on non-touch if desired, or toggle with I */
+        @media (pointer: fine) {
+            #mobile-ui { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -434,6 +464,18 @@
         <div class="weapon-slots" id="hud-slots"></div>
     </div>
 
+    <div id="mobile-ui">
+        <div id="stick-left" class="joystick-zone"><div class="stick-knob"></div></div>
+        
+        <div id="stick-right"><div class="stick-knob"></div></div>
+        
+        <div id="btn-fire" class="mobile-btn"><i class="fas fa-crosshairs"></i></div>
+        <div id="btn-reload" class="mobile-btn"><i class="fas fa-sync-alt"></i></div>
+        <div id="btn-scope" class="mobile-btn"><i class="fas fa-eye"></i></div>
+        <div id="btn-jump" class="mobile-btn"><i class="fas fa-arrow-up"></i></div>
+        <div id="btn-sprint" class="mobile-btn"><i class="fas fa-running"></i></div>
+    </div>
+
     <div id="match-results">
         <div class="results-title" id="res-title">VICTORY</div>
         <div class="mvp-subtitle" id="res-mvp">MVP: YOU</div>
@@ -468,6 +510,8 @@
         let elevators = [];
         let sustainedFireHeat = 0;
         let isPlayerJuggernaut = false;
+        let joystickMove = { x: 0, y: 0 };
+        let joystickLook = { x: 0, y: 0 };
 
         const GUN_GAME_WEAPONS = ["Standard 9mm", "Auto-Pistol", "Volt-AR", "Cutter SMG", "Carbine-X", "Burst-Pulse", "Marksman-7", "Slug-Shotty", "LMG-Heavy", "Sniper", "Hand Cannon", "RPG Launcher", "Tactical Knife"];
         let playerGunGameIndex = 0;
@@ -2786,6 +2830,152 @@
             return group;
         }
 
+        function setupMobileControls() {
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                const mUi = document.getElementById('mobile-ui');
+                if (mUi) mUi.style.display = 'block';
+            }
+
+            const handleJoystick = (zoneId, knobClass, output) => {
+                const zone = document.getElementById(zoneId);
+                const knob = zone.querySelector(knobClass);
+                let touchId = null;
+                let startX = 0, startY = 0;
+
+                zone.addEventListener('touchstart', e => {
+                    e.preventDefault();
+                    const touch = e.changedTouches[0];
+                    touchId = touch.identifier;
+                    startX = touch.clientX; startY = touch.clientY;
+                    knob.style.transition = 'none';
+                }, {passive: false});
+
+                zone.addEventListener('touchmove', e => {
+                    e.preventDefault();
+                    for(let i=0; i<e.changedTouches.length; i++) {
+                        if(e.changedTouches[i].identifier === touchId) {
+                            const touch = e.changedTouches[i];
+                            const maxDist = 40;
+                            let dx = touch.clientX - startX;
+                            let dy = touch.clientY - startY;
+                            const dist = Math.sqrt(dx*dx+dy*dy);
+                            if(dist > maxDist) {
+                                const angle = Math.atan2(dy, dx);
+                                dx = Math.cos(angle) * maxDist;
+                                dy = Math.sin(angle) * maxDist;
+                            }
+                            knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                            output.x = dx / maxDist;
+                            output.y = dy / maxDist;
+                        }
+                    }
+                }, {passive: false});
+
+                const end = (e) => {
+                    for(let i=0; i<e.changedTouches.length; i++) {
+                        if(e.changedTouches[i].identifier === touchId) {
+                            touchId = null;
+                            knob.style.transition = '0.2s';
+                            knob.style.transform = `translate(-50%, -50%)`;
+                            output.x = 0; output.y = 0;
+                        }
+                    }
+                };
+                zone.addEventListener('touchend', end);
+                zone.addEventListener('touchcancel', end);
+            };
+
+            handleJoystick('stick-left', '.stick-knob', joystickMove);
+            
+            // RIGHT STICK (SWIPE TO LOOK) OVERHAUL
+            const zoneLook = document.getElementById('stick-right');
+            let lookTouchId = null;
+            let lastLookX = 0, lastLookY = 0;
+            
+            zoneLook.addEventListener('touchstart', e => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                lookTouchId = touch.identifier;
+                lastLookX = touch.clientX; 
+                lastLookY = touch.clientY;
+                joystickLook.x = 0;
+                joystickLook.y = 0;
+            }, {passive: false});
+            
+            zoneLook.addEventListener('touchmove', e => {
+                e.preventDefault();
+                for(let i=0; i<e.changedTouches.length; i++) {
+                    if(e.changedTouches[i].identifier === lookTouchId) {
+                        const touch = e.changedTouches[i];
+                        let dx = touch.clientX - lastLookX;
+                        let dy = touch.clientY - lastLookY;
+
+                        if (controls && controls.isLocked) {
+                            const sens = parseFloat(document.getElementById('set-sens').value) * 2.0;
+                            const lookSpeed = sens * (isScoping ? parseFloat(document.getElementById('set-ads-sens').value) : 1.0);
+
+                            // Apply sway
+                            targetSway.x -= dx * 0.001;
+                            targetSway.y -= dy * 0.001;
+                            targetSway.x = Math.max(-0.1, Math.min(0.1, targetSway.x));
+                            targetSway.y = Math.max(-0.1, Math.min(0.1, targetSway.y));
+
+                            if (document.getElementById('set-invert-y').checked) {
+                                let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+                                euler.setFromQuaternion(camera.quaternion);
+                                euler.x += dy * 0.002 * controls.pointerSpeed * 2.0;
+                                euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+                                camera.quaternion.setFromEuler(euler);
+                                controls.getObject().rotation.y -= dx * 0.002 * lookSpeed;
+                            } else {
+                                controls.getObject().rotation.y -= dx * 0.002 * lookSpeed;
+                                camera.rotation.x -= dy * 0.002 * lookSpeed;
+                                camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+                            }
+                        }
+
+                        lastLookX = touch.clientX;
+                        lastLookY = touch.clientY;
+                    }
+                }
+            }, {passive: false});
+            
+            const endLook = (e) => {
+                for(let i=0; i<e.changedTouches.length; i++) {
+                    if(e.changedTouches[i].identifier === lookTouchId) {
+                        lookTouchId = null;
+                        joystickLook.x = 0; joystickLook.y = 0;
+                    }
+                }
+            };
+            zoneLook.addEventListener('touchend', endLook);
+            zoneLook.addEventListener('touchcancel', endLook);
+
+            const bindBtn = (id, downFn, upFn) => {
+                const btn = document.getElementById(id);
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); downFn(); }, {passive: false});
+                btn.addEventListener('touchend', (e) => { e.preventDefault(); if(upFn) upFn(); }, {passive: false});
+            };
+
+            bindBtn('btn-fire', () => { isShooting = true; shoot(); }, () => { isShooting = false; });
+            bindBtn('btn-jump', () => { 
+                 if (isHanging) { isHanging = false; velocity.y = 40; velocity.add(vaultDir.clone().multiplyScalar(30)); }
+                 else if(isGrounded) { velocity.y += isSliding ? 55 : 35; if(isSliding) { velocity.x = 0; velocity.z = 0; isSliding = false; } }
+            });
+            bindBtn('btn-reload', () => reload());
+            bindBtn('btn-sprint', () => { isSprintingState = !isSprintingState; });
+            bindBtn('btn-scope', () => {
+                if (selectedItems[activeWeaponIndex] !== "OBS" && activeWeaponIndex !== 2) {
+                    isScoping = !isScoping;
+                    if (controls) {
+                        const sens = parseFloat(document.getElementById('set-sens').value);
+                        const adsSens = parseFloat(document.getElementById('set-ads-sens').value);
+                        controls.pointerSpeed = isScoping ? sens * adsSens : sens;
+                    }
+                }
+            });
+        }
+
         function initGame() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -2967,6 +3157,15 @@
                 if (item && i < 4) { 
                     const slot = document.createElement('div'); slot.className = `slot ${i === 0 ? 'active' : ''}`;
                     slot.id = `hud-slot-${i}`; slot.setAttribute('data-key', i + 1); slot.innerText = item; hudSlots.appendChild(slot);
+                    slot.id = `hud-slot-${i}`; slot.setAttribute('data-key', i + 1); slot.innerText = item; 
+                    slot.onclick = () => {
+                        if (activeGamemode === 'GUN_GAME') return;
+                        activeWeaponIndex = i; 
+                        isScoping = false; 
+                        updateWeaponModel(); 
+                        updateAmmoUI(); 
+                    };
+                    hudSlots.appendChild(slot);
                 }
             });
 
@@ -3017,6 +3216,7 @@
             }
 
             setupInputs(); updateWeaponModel(); updateAmmoUI(); applyCrosshairSettings(); animate();
+            setupMobileControls();
             
             setTimeout(() => { document.getElementById('round-announcement').style.opacity = 0; }, 2000);
             document.getElementById('round-announcement').style.opacity = 1;
@@ -3042,6 +3242,14 @@
         function setupInputs() {
             window.oncontextmenu = (e) => e.preventDefault(); 
             
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'i' || e.key === 'I') {
+                    // CHANGED: Only targets mobile UI, leaves ui-layer alone.
+                    const mob = document.getElementById('mobile-ui');
+                    if(mob) mob.style.display = (mob.style.display === 'none') ? 'block' : 'none';
+                }
+            });
+
             let lastMovementY = 0;
             window.addEventListener('mousemove', (e) => {
                 if(!controls.isLocked) return;
@@ -4050,8 +4258,13 @@
                     }
 
                     direction.z = Number(moveFwd) - Number(moveBwd); direction.x = Number(moveR) - Number(moveL); direction.normalize();
+                    direction.z = (Number(moveFwd) - Number(moveBwd)) - joystickMove.y; 
+                    direction.x = (Number(moveR) - Number(moveL)) + joystickMove.x; 
+                    direction.normalize();
 
                     let baseSpeed = isProne ? 150 : ((isSliding && isGrounded) ? 900 : (isWallRunning ? 700 : (isSprintingState && moveFwd ? 800 : 500))); 
+                    if (joystickMove.y > 0.5 && isSprintingState) baseSpeed = 800;
+                    
                     let weightMult = WEAPON_CONFIG[selectedItems[activeWeaponIndex]]?.weight || 1.0;
                     let momentumMult = (selectedItems[4] === "Momentum") ? (1 + (momentumStacks * 0.02)) : 1.0;
                     if (selectedItems[4] === "Adrenaline Rush" && performance.now() < adrenalineEndTime) {
@@ -4062,6 +4275,8 @@
                     if (!isHanging) {
                         if (moveFwd || moveBwd) velocity.z -= direction.z * speed * delta;
                         if (moveL || moveR) velocity.x -= direction.x * speed * delta;
+                        if (moveFwd || moveBwd || Math.abs(joystickMove.y) > 0.1) velocity.z -= direction.z * speed * delta;
+                        if (moveL || moveR || Math.abs(joystickMove.x) > 0.1) velocity.x -= direction.x * speed * delta;
                     }
 
                     controls.moveRight(-velocity.x * delta); 
@@ -4197,6 +4412,15 @@
                                 }
                             }
                         }
+                    }
+
+                    // Joystick Look
+                    if (Math.abs(joystickLook.x) > 0.05 || Math.abs(joystickLook.y) > 0.05) {
+                        const sens = parseFloat(document.getElementById('set-sens').value) * 2.0; 
+                        const lookSpeed = sens * (isScoping ? parseFloat(document.getElementById('set-ads-sens').value) : 1.0);
+                        controls.getObject().rotation.y -= joystickLook.x * lookSpeed * 0.05;
+                        camera.rotation.x -= joystickLook.y * lookSpeed * 0.05;
+                        camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
                     }
 
                     if (isMultiplayer && peerConn && peerConn.open && frameCount % 2 === 0) {
