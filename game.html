@@ -99,6 +99,26 @@
             margin-top: 30px; padding: 15px 80px; font-size: 1.5rem; background: #ff007f; color: white;
             border: none; cursor: pointer; transform: skewX(-15deg); font-weight: 900; box-shadow: 0 0 30px rgba(255,0,127,0.4); transition: 0.3s;
         }
+
+        /* LOBBY ADDITIONS */
+        .lobby-meta-row { display: flex; gap: 20px; width: 90%; max-width: 1100px; margin-top: 25px; flex: 1; max-height: 250px; }
+        .lobby-pane { background: rgba(0,0,0,0.6); border: 1px solid #333; border-radius: 10px; display: flex; flex-direction: column; padding: 15px; }
+        .lobby-players { flex: 1; }
+        .lobby-chat { flex: 1.5; }
+        .lobby-title { font-size: 0.75rem; color: #ff007f; letter-spacing: 2px; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        
+        #lobby-msg-box { flex: 1; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; color: #ccc; margin-bottom: 10px; }
+        .chat-msg { margin-bottom: 4px; border-left: 2px solid #555; padding-left: 8px; }
+        .chat-user { color: #00ffcc; font-weight: bold; }
+        
+        #lobby-chat-input { background: rgba(255,255,255,0.05); border: 1px solid #444; color: white; padding: 8px; font-family: 'Montserrat', sans-serif; outline: none; }
+        #lobby-chat-input:focus { border-color: #ff007f; }
+
+        .slot-row { display: flex; justify-content: space-between; padding: 6px 12px; background: rgba(255,255,255,0.03); margin-bottom: 4px; font-size: 0.8rem; border-left: 3px solid #444; }
+        .slot-blue { border-left-color: #00aaff; }
+        .slot-red { border-left-color: #ff007f; }
+        .slot-empty { color: #555; font-style: italic; }
+        }
         #deploy-btn:hover { transform: skewX(-15deg) scale(1.05); background: #ff3399; }
         #deploy-btn:disabled { background: #333; cursor: not-allowed; box-shadow: none; opacity: 0.5; }
 
@@ -327,6 +347,21 @@
         <h1>REVO</h1>
         <div class="sub-text">CHOOSE YOUR LOADOUT</div>
         <div class="loadout-container" id="menu-grid"></div>
+        
+        <div class="lobby-meta-row">
+            <div class="lobby-pane lobby-players">
+                <div class="lobby-title">SQUAD MANIFEST (UNITS)</div>
+                <div id="lobby-slots-container">
+                    <!-- Slots populated by JS -->
+                </div>
+            </div>
+            <div class="lobby-pane lobby-chat">
+                <div class="lobby-title">COMMS CHANNEL (T TO CHAT)</div>
+                <div id="lobby-msg-box"></div>
+                <input type="text" id="lobby-chat-input" placeholder="Type message..." maxlength="100">
+            </div>
+        </div>
+
         <button id="deploy-btn" disabled>Deploy To Battle</button>
         <button class="game-settings-btn" id="loadout-settings-btn" style="position: relative; margin-top: 20px;">
             <i class="fas fa-cog"></i> Settings
@@ -1021,6 +1056,7 @@
                         } else {
                             document.getElementById('selection-screen').style.display = 'flex';
                         }
+                        updateLobbyUI();
                     }, 300);
                 };
             });
@@ -1254,10 +1290,80 @@
         const netRoom = urlParams.get('room');
         const isMultiplayer = (gameMode === 'online');
         const isHost = (netRole === 'host');
+        const userName = urlParams.get('user') || 'GUEST_UNIT';
         
         let peer;
         let peerConn;
+        let peerConns = [];
+        let lobbyPlayers = []; // { id, name, team }
+
+        function updateLobbyUI() {
+            const container = document.getElementById('lobby-slots-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            // Determine slots based on gamemode
+            let slotsPerTeam = 1;
+            if (activeGamemode === 'TDM4') slotsPerTeam = 4;
+            else if (activeGamemode === 'TDM5') slotsPerTeam = 5;
+            else if (activeGamemode === 'JUGGERNAUT') slotsPerTeam = 10;
+
+            const teams = ['blue', 'red'];
+            teams.forEach(t => {
+                for (let i = 0; i < slotsPerTeam; i++) {
+                    const player = lobbyPlayers.find(p => p.team === t && p.slot === i);
+                    const div = document.createElement('div');
+                    div.className = `slot-row slot-${t}`;
+                    if (player) {
+                        div.innerHTML = `<span>${player.name}</span> <span style="color:#00ffcc; font-size:0.6rem">CONNECTED</span>`;
+                    } else {
+                        div.innerHTML = `<span class="slot-empty">Empty Slot</span> <i class="fas fa-user-plus" style="color:#222"></i>`;
+                    }
+                    container.appendChild(div);
+                }
+            });
+        }
+
+        function addLobbyChatMessage(sender, text) {
+            const box = document.getElementById('lobby-msg-box');
+            if (!box) return;
+            const msg = document.createElement('div');
+            msg.className = 'chat-msg';
+            msg.innerHTML = `<span class="chat-user">${sender}:</span> ${text}`;
+            box.appendChild(msg);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // Handle 'T' to focus chat
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 't' && document.activeElement.tagName !== 'INPUT') {
+                const input = document.getElementById('lobby-chat-input');
+                if (input && document.getElementById('selection-screen').style.display === 'flex') {
+                    e.preventDefault();
+                    input.focus();
+                }
+            }
+        });
+
+        document.getElementById('lobby-chat-input').onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const text = e.target.value.trim();
+                if (text) {
+                    const msgData = { type: 'chat', user: userName, text: text };
+                    addLobbyChatMessage('YOU', text);
+                    if (isHost) {
+                        peerConns.forEach(c => c.send(msgData));
+                    } else if (peerConn && peerConn.open) {
+                        peerConn.send(msgData);
+                    }
+                    e.target.value = '';
+                }
+                e.target.blur();
+            }
+        };
+
         let networkPlayerObj = null;
+        let remotePlayers = new Map(); 
 
         let votes = { p1: null, p2: null };
         let votingMaps = [];
@@ -1344,12 +1450,21 @@
             }
         }
 
+        function syncLobbyPlayers() {
+            if (isHost) {
+                peerConns.forEach(c => {
+                    c.send({ type: 'lobby_sync', players: lobbyPlayers });
+                });
+            }
+        }
+
         if (isMultiplayer) {
             document.getElementById('gamemode-screen').style.display = 'none';
             document.getElementById('map-screen').style.display = 'none';
             document.getElementById('network-status').style.display = 'block';
             document.getElementById('loading-screen').style.display = 'flex';
             peer = new Peer(isHost ? netRoom : undefined, {
+                debug: 2,
                 config: {
                     'iceServers': [
                         { urls: 'stun:stun.l.google.com:19302' },
@@ -1358,26 +1473,46 @@
                 }
             });
 
+            peer.on('error', (err) => {
+                console.error('PeerJS Error:', err);
+                const statusEl = document.getElementById('network-status');
+                statusEl.innerText = "NETWORK ERROR: " + err.type;
+                statusEl.style.color = "#ff4444";
+                statusEl.style.borderColor = "#ff4444";
+            });
+
             if (isHost) {
                 document.getElementById('network-status').innerText = "WAITING FOR OPPONENT...";
                 document.getElementById('loading-msg').innerText = "HOSTING ROOM: " + netRoom;
                 peer.on('connection', (conn) => {
                     peerConn = conn;
-                    setupNetwork();
+                    peerConns.push(conn);
+                    setupNetwork(conn);
+                    // Add host to lobby if not there
+                    if (lobbyPlayers.length === 0) {
+                        lobbyPlayers.push({ name: userName, team: 'blue', slot: 0 });
+                    }
                 });
             } else {
                 document.getElementById('network-status').innerText = "CONNECTING TO HOST...";
                 document.getElementById('loading-msg').innerText = "CONNECTING TO ROOM: " + netRoom;
                 peer.on('open', () => {
-                    peerConn = peer.connect(netRoom, { reliable: true });
-                    setupNetwork();
+                    const conn = peer.connect(netRoom, { reliable: true });
+                    peerConn = conn;
+                    setupNetwork(conn);
                 });
             }
         }
 
-        function setupNetwork() {
-            peerConn.on('open', () => {
+        function setupNetwork(conn) {
+            conn.on('open', () => {
                 document.getElementById('loading-screen').style.display = 'none';
+                
+                // Send initial join info
+                if (!isHost) {
+                    conn.send({ type: 'lobby_join', name: userName });
+                }
+
                 const statusEl = document.getElementById('network-status');
                 statusEl.innerText = "NETWORK: SECURED";
                 statusEl.style.color = "#00ffcc";
@@ -1395,20 +1530,47 @@
                     votingMaps = allMaps.slice(0, 3);
                     
                     setTimeout(() => {
-                        peerConn.send({ type: 'start_vote', maps: votingMaps });
+                        conn.send({ type: 'start_vote', maps: votingMaps });
                         startVotingPhase();
                     }, 1000);
                 }
             });
 
-            peerConn.on('data', (data) => {
+            conn.on('close', () => {
+                if (!isGameOver) {
+                    endMatchCustom("OPPONENT DISCONNECTED - YOU WIN", "#00ffcc");
+                }
+                const idx = peerConns.indexOf(conn); if(idx > -1) peerConns.splice(idx,1);
+            });
+
+            conn.on('data', (data) => {
+                const senderId = conn.peer;
+                if (data.type === 'chat') {
+                    addLobbyChatMessage(data.user, data.text);
+                    if (isHost) peerConns.filter(c => c.peer !== conn.peer).forEach(c => c.send(data));
+                }
+                if (data.type === 'lobby_join' && isHost) {
+                    // Find empty slot
+                    let team = lobbyPlayers.filter(p => p.team === 'blue').length < lobbyPlayers.filter(p => p.team === 'red').length ? 'blue' : 'red';
+                    let slot = lobbyPlayers.filter(p => p.team === team).length;
+                    lobbyPlayers.push({ name: data.name, team: team, slot: slot, peerId: conn.peer });
+                    updateLobbyUI();
+                    syncLobbyPlayers();
+                    addLobbyChatMessage('SYSTEM', `${data.name} JOINED THE SQUAD`);
+                }
+                if (data.type === 'lobby_sync') {
+                    lobbyPlayers = data.players;
+                    updateLobbyUI();
+                }
+                // Existing handlers updated to use 'conn' context
+                if (data.type === 'map_select') {
                 if (data.type === 'start_vote') {
                     votingMaps = data.maps;
                     startVotingPhase();
                 }
                 if (data.type === 'submit_vote') {
                     votes.p2 = data.map;
-                    peerConn.send({ type: 'sync_votes', votes: votes });
+                    conn.send({ type: 'sync_votes', votes: votes });
                     renderVotingCards();
                     if (isHost) checkVotes();
                 }
@@ -1437,7 +1599,22 @@
                 }
                 if (data.type === 'state' && networkPlayerObj) {
                     networkPlayerObj.position.copy(data.pos);
+                    networkPlayerObj.position.y -= 2.5; // Offset to ground level from eye level
                     networkPlayerObj.rotation.y = data.rotY;
+                    networkPlayerObj.userData.isMoving = data.isMoving;
+                    
+                    // Update remote visuals for crouching/sliding
+                    if (data.isSliding || data.isProne) {
+                        networkPlayerObj.scale.y = 0.6;
+                    } else {
+                        networkPlayerObj.scale.y = 1.12;
+                    }
+
+                    // Sync remote weapon visual
+                    if (networkPlayerObj.userData.aiGun && data.activeWeapon) {
+                        const cfg = WEAPON_CONFIG[data.activeWeapon];
+                        if (cfg) networkPlayerObj.userData.aiGun.material.color.setHex(cfg.color);
+                    }
                 }
                 if (data.type === 'shoot') {
                     if (document.getElementById('set-tracers').checked) {
@@ -1448,7 +1625,7 @@
                         enemyBullets[enemyBullets.length-1].visible = false;
                     }
                 }
-                if (data.type === 'hit') takePlayerDamage(data.damage, networkPlayerObj);
+                if (data.type === 'hit') takePlayerDamage(data.damage, networkPlayerObj, data.isHeadshot);
                 if (data.type === 'death') {
                     onPlayerKill();
                     if(!checkGameEnd()) resetRound();
@@ -4460,6 +4637,13 @@
             eStats.shotsHit++;
             eStats.damageDealt += amt;
 
+            // In Multiplayer, if we take damage, notify the other player if it was fatal
+            if (health <= 0 && isMultiplayer && peerConn && peerConn.open) {
+                // We don't send 'hit' back, the attacker sends 'hit' to us.
+                // But we send 'death' to sync round resets.
+                peerConn.send({ type: 'death' });
+            }
+
             updateBloodUI();
             document.getElementById('hp-bar').style.width = `${Math.max(0, (health/maxHealth)*100)}%`;
             if (health <= 0) { 
@@ -4727,21 +4911,22 @@
                 }
             });
 
-            // Animate remote player model (if present) with smoothed procedural bobbing
-            if (networkPlayerObj) {
-                try {
-                    networkPlayerObj.userData.animCycle = (networkPlayerObj.userData.animCycle || 0) + ((moveFwd || moveBwd || moveL || moveR) ? 0.12 : -networkPlayerObj.userData.animCycle * 0.04) * timeScale;
-                    const nc = networkPlayerObj.userData.animCycle;
-                    const smoothFactor = Math.min(0.18, 0.12 * timeScale);
-                    const targetLegL = Math.sin(nc) * 0.6;
-                    const targetLegR = Math.sin(nc + Math.PI) * 0.6;
-                    if (networkPlayerObj.userData.legL) networkPlayerObj.userData.legL.rotation.x = THREE.MathUtils.lerp(networkPlayerObj.userData.legL.rotation.x, targetLegL, smoothFactor);
-                    if (networkPlayerObj.userData.legR) networkPlayerObj.userData.legR.rotation.x = THREE.MathUtils.lerp(networkPlayerObj.userData.legR.rotation.x, targetLegR, smoothFactor);
-                    const armBob = Math.sin(nc) * 0.08 || 0;
-                    if (networkPlayerObj.userData.armL) networkPlayerObj.userData.armL.rotation.x = THREE.MathUtils.lerp(networkPlayerObj.userData.armL.rotation.x, -Math.PI / 2.5 + armBob, smoothFactor);
-                    if (networkPlayerObj.userData.armR) networkPlayerObj.userData.armR.rotation.x = THREE.MathUtils.lerp(networkPlayerObj.userData.armR.rotation.x, -Math.PI / 2.5 - armBob, smoothFactor);
-                } catch (e) {}
-            }
+            // Animate remote player models (if present)
+            remotePlayers.forEach(rPlayer => {
+                const isMovingRemote = rPlayer.userData.isMoving || false;
+                const isSprintingRemote = rPlayer.userData.isSprinting || false;
+                const isProneRemote = rPlayer.userData.isProne || false;
+                let cycleSpeed = isMovingRemote ? (isSprintingRemote ? 0.25 : 0.15) : 0;
+                rPlayer.userData.animCycle = (rPlayer.userData.animCycle || 0) + cycleSpeed * timeScale;
+                const nc = rPlayer.userData.animCycle;
+                const smoothFactor = Math.min(0.18, 0.12 * timeScale);
+                if (rPlayer.userData.legL) rPlayer.userData.legL.rotation.x = THREE.MathUtils.lerp(rPlayer.userData.legL.rotation.x, Math.sin(nc) * 0.8, smoothFactor);
+                if (rPlayer.userData.legR) rPlayer.userData.legR.rotation.x = THREE.MathUtils.lerp(rPlayer.userData.legR.rotation.x, Math.sin(nc + Math.PI) * 0.8, smoothFactor);
+                const armBob = Math.sin(nc) * 0.08 || 0;
+                if (rPlayer.userData.armL) rPlayer.userData.armL.rotation.x = THREE.MathUtils.lerp(rPlayer.userData.armL.rotation.x, -Math.PI / 2.5 + armBob, smoothFactor);
+                if (rPlayer.userData.armR) rPlayer.userData.armR.rotation.x = THREE.MathUtils.lerp(rPlayer.userData.armR.rotation.x, -Math.PI / 2.5 - armBob, smoothFactor);
+                rPlayer.scale.y = THREE.MathUtils.lerp(rPlayer.scale.y, isProneRemote ? 0.5 : 1.15, 0.2);
+            });
 
             // Enhanced FRAGEN-style bobbing and sway
             targetSway.lerp(new THREE.Vector2(0,0), 0.05);
@@ -4999,7 +5184,16 @@
                     }
 
                     if (isMultiplayer && peerConn && peerConn.open && frameCount % 2 === 0) {
-                        peerConn.send({ type: 'state', pos: controls.getObject().position, rotY: camera.rotation.y });
+                        const cfg = WEAPON_CONFIG[selectedItems[activeWeaponIndex]];
+                        peerConn.send({ 
+                            type: 'state', 
+                            pos: controls.getObject().position, 
+                            rotY: controls.getObject().rotation.y,
+                            isMoving: (moveFwd || moveBwd || moveL || moveR),
+                            isSprinting: isSprintingState,
+                            isProne: isProne,
+                            weaponColor: cfg ? cfg.color : 0xffffff
+                        });
                     }
                 }
             } else if (isKillCam && killCamTarget) {
@@ -5064,6 +5258,47 @@
 
                 b.position.add(b.userData.velocity.clone().multiplyScalar(timeScale)); 
                 if (b.userData.type !== "rocket") b.scale.z = 3.5; 
+
+                if (isMultiplayer) {
+                    let hitP = false;
+                    remotePlayers.forEach((rPlayer, peerId) => {
+                        if (b.position.distanceTo(rPlayer.position) < 3.5) {
+                            let isHeadshot = (b.position.y - rPlayer.position.y) >= 1.8;
+                            let finalDmg = b.userData.damage;
+
+                            // Apply Perks
+                            if (b.userData.perk === "Point Blank") {
+                                let dist = b.position.distanceTo(camera.position); 
+                                finalDmg *= (dist <= 5) ? 1.15 : Math.max(0.1, 1.0 - (dist - 5) * 0.04);
+                            }
+                            if (b.userData.perk === "Head-Hunter") {
+                                finalDmg = isHeadshot ? finalDmg * 2.0 : finalDmg * 0.5; 
+                            } else {
+                                finalDmg = isHeadshot ? finalDmg * 1.5 : finalDmg; 
+                            }
+
+                            pStats.shotsHit++;
+                            pStats.damageDealt += finalDmg;
+                            SoundEngine.hit(isHeadshot);
+
+                            // Inform the victim they were hit
+                            peerConns.forEach(conn => {
+                                if (conn.peer === peerId) {
+                                    conn.send({ type: 'hit', damage: finalDmg, isHeadshot: isHeadshot });
+                                }
+                            });
+
+                            if (document.getElementById('set-dmg-nums').checked) {
+                                damageTexts.push(new DamageNumber(b.position, finalDmg));
+                            }
+                            spawnParticles(b.position, 5, 'spark', isHeadshot ? 0xff0000 : 0x00aaff);
+                            hitP = true;
+                        }
+                    });
+                    if(hitP) {
+                        scene.remove(b); bullets.splice(i, 1); continue;
+                    }
+                }
 
                 let hitAny = false;
                 aiControllers.forEach(ai => {
@@ -5148,7 +5383,7 @@
 
                 b.position.add(b.userData.velocity.clone().multiplyScalar(timeScale)); b.scale.z = 3.5; 
 
-                if(b.position.distanceTo(controls.getObject().position) < 3.0) { 
+                if(!isMultiplayer && b.position.distanceTo(controls.getObject().position) < 3.0) { 
                     
                     let headshotThreshold = controls.getObject().position.y - 1.5;
                     let isHeadshotPlayer = b.position.y > headshotThreshold;
